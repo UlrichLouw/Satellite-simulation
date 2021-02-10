@@ -57,7 +57,7 @@ class Control:
 
         Satellite_control_model = control.StateSpace(A, Bu, C, D)
 
-        Satellite_control_model = signal.StateSpace(A, Bu, C, D, dt = Ts)
+        #Satellite_control_model = signal.StateSpace(A, Bu, C, D, dt = Ts)
 
         Satellite_disturbance_model = signal.StateSpace(A, Bd, C, D, dt = Ts)
 

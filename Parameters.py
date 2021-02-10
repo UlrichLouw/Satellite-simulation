@@ -21,9 +21,9 @@ class SET_PARAMS:
     Mass = 20 #kg
     Dimensions = np.array(([0.3, 0.3, 0.4])) # Lx, Ly, Lz
     Period = 5678.7 #seconds
-    Ix = 0.4 #kg.m^2
-    Iy = 0.45 #kg.m^2
-    Iz = 0.3 #kg.m^2
+    Ix = 14.3 #kg.m^2
+    Iy = 13.6 #kg.m^2
+    Iz = 4.6 #kg.m^2
     Iw = 88.1e-6 #kgm^2 Inertia of the RW-06 wheel
     wo = (Mean_motion/(3600*24)) / (2*pi*Semi_major_axis * 1000) #rad/s
     k = 2 #order of expansion
@@ -41,7 +41,7 @@ class SET_PARAMS:
     # This function provides the Inertia matrix for the satellite
     Inertia = np.identity(3)*np.array((Ix, Iy, Iz))
     hs0 = np.zeros((3,1))
-    hs1 = np.array(([0],[0],[0.5]))
+    hs1 = np.array(([0],[0.5],[0.2]))
     ws0 = np.zeros((3,1))
     ws1 = np.array(([0],[-0.003],[0]))
 
