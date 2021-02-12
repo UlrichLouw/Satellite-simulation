@@ -19,7 +19,7 @@ class Control:
         return Nm
 
     def Reaction_Wheel(self, Is, ws, hw, tau_w, Ts):
-        Is1 , Is2, Is3 = Is
+        Is1, Is2, Is3 = Is
 
         hw1, hw2, hw3 = hw[:,0]
         ws1, ws2, ws3 = ws[:,0]
