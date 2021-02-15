@@ -1,3 +1,5 @@
+import numpy as np
+
 def euler_to_quaternion(roll, pitch, yaw):
     # This function is used to translate the euler angles (roll, pitch, yaw) to quaternions
 
@@ -14,7 +16,7 @@ def quaternion_error(current_quaternion, command_quaternion):
     # system.
 
     qc1, qc2, qc3, qc4 = command_quaternion
-    q_c = np.array([qc4, qc3, -qc2, -qc1],[-qc3, qc4, qc1, -qc2],[qc2, -qc1, qc4, -qc3], [qc1, qc2, qc3, qc4])
+    q_c = np.array(([qc4, qc3, -qc2, -qc1],[-qc3, qc4, qc1, -qc2],[qc2, -qc1, qc4, -qc3], [qc1, qc2, qc3, qc4]))
     q_error = np.matmul(q_c, current_quaternion)
 
     return q_error

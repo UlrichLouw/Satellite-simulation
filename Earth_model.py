@@ -19,6 +19,26 @@ class Earth:
 
         return delta_V
 
+    def scalar_potential_function(self, orbit_radius, coevelation, longitude):
+        rs = orbit_radius
+        theta = coevelation
+        lambda_ = longitude
+        k = SET_PARAMS.k
+        g = SET_PARAMS.g
+        h = SET_PARAMS.h
+        Re = SET_PARAMS.Re
+        P = special.lpmn(k,k,theta)[0]
+        V = 0
+        for n in range(1,k):
+            sum_ = 0
+            for m in range(n):
+                print(P)
+                sum_ = sum_ + (g*np.cos(m*lambda_) + h*np.sin(m*lambda_)) * P[m,n]
+            
+            V = V + (Re/rs)**(n+1) * sum_
+
+        return V
+
     def Sun_Position(self):
         T_jc = (J_T - 2452545)/36525
         M_o = 357.527723300 + 35999.050340*T_jc     #in degrees
