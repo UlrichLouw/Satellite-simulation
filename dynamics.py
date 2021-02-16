@@ -1,6 +1,8 @@
 import numpy as np
 import Satellite_display as view
 import Controller
+from Disturbances import Disturbances
+from Parameters import SET_PARAMS
 
 def Transformation_matrix(q):
     q1, q2, q3, q4 = q[:]
@@ -18,18 +20,19 @@ def Transformation_matrix(q):
 
 class Dynamics:
     def __init__(self):
-        self.w_bi = np.array(([0.1],[0],[0]))
-        self.q = np.array(([0,0,0,1]))
-        self.t = 0
-        self.dt = 0.01
-        self.dh = 0.001
-        self.N = np.array(([0.1], [0.1],[0.1]))
-        self.Ix = 2
-        self.Iy = 2
-        self.Iz = 2
-        self.Inertia = np.array(([self.Ix, self.Iy, self.Iz]))
-        self.Iw = 0.05
-        self.angular_momentum = np.zeros((3,1))
+        self.dist = Disturbances()
+        self.w_bi = SET_PARAMS.wbi
+        self.q = SET_PARAMS.quaternion_initial
+        self.t = SET_PARAMS.time
+        self.dt = SET_PARAMS.Ts
+        self.dh = self.dt/10
+        self.Ix = SET_PARAMS.Ix
+        self.Iy = SET_PARAMS.Iy
+        self.Iz = SET_PARAMS.Iz
+        self.Inertia = np.identity(3)*np.array(([self.Ix, self.Iy, self.Iz]))
+        self.Iw = SET_PARAMS.Iw
+        self.angular_momentum = SET_PARAMS.initial_angular_momentum
+        self.A = Transformation_matrix(self.q)
 
     def rungeKutta_h(self, x0, angular, x, h, N_control):
         angular_momentum_derived = N_control/self.Iw
@@ -50,8 +53,9 @@ class Dynamics:
 
     def rungeKutta_w(self, x0, w, x, h):
         Ngg = 0
-        N_aero = 0
-        N_rw = 0
+        N_aero = 0 #self.dist.Aerodynamic(self.A)
+        N_rw = self.dist.Wheel_Imbalance(w, x)
+        Ngg = self.dist.Gravity_gradient_func(self.A)
         N_disturbance = Ngg + N_aero + N_rw #Ignore gyroscope
         N_control = Controller.Control().control(w, self.q, self.Inertia)
         self.angular_momentum = self.rungeKutta_h(x0, self.angular_momentum, x, h, N_control)
@@ -93,17 +97,15 @@ class Dynamics:
     def rotation(self):
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
-        #print(self.q)
-        print(self.w_bi)
-        A = Transformation_matrix(self.q)
+        self.A = Transformation_matrix(self.q)
         self.t += self.dt
-        return self.w_bi, self.q, A
+        return self.w_bi, self.q, self.A
 
 
 if __name__ == "__main__":
     D = Dynamics()
     satellite = view.initializeCube()
     pv = view.ProjectionViewer(640, 480, satellite)
-    for i in range(100000):
+    for i in range(1000):
         w, q, A = D.rotation()
         pv.run(w, q, A)

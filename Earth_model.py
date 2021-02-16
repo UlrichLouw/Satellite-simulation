@@ -1,7 +1,33 @@
 from Parameters import SET_PARAMS
 import math
+import numpy as np
 
 pi = math.pi
+class orbit:
+    def __init__(self):
+        self.we = SET_PARAMS.we
+        self.a_G0 = SET_PARAMS.a_G0
+        self.position_vector = SET_PARAMS.position_vector
+        self.velocity_vector = SET_PARAMS.velocity_vector
+        #self.sensor = Sensors()
+
+    def EFC_to_EIC(self, t):
+        a_G = self.we * t + self.a_G0
+        A = np.array(([[np.cos(a_G), -np.sin(a_G), 0], [np.sin(a_G), np.cos(a_G), 0], [0,0,1]]))
+        return A
+
+    def EIC_to_ORC(self):
+        # position vector - Height from center of earth, 
+        c = -self.position_vector   # position vector must be measured by sensors
+        b = np.matmul(self.velocity_vector, self.position_vector)/(np.linalg.norm(np.matmul(self.velocity_vector, self.position_vector)))
+        a = np.matmul(b,c)
+        A = np.concatenate((a,b,c))
+        return A
+
+    def rotation(self):
+        pass
+
+
 
 class Earth:   
     def __init__(self):
@@ -47,5 +73,9 @@ class Earth:
         epsilon =  23.439291 - 0.013004200*T_jc                 #degrees
         r_o = 1.00140612 - 0.016708617*np.cos(M_o*pi/180) - 0.000139589*np.cos(2*M_o*pi/180)        #degrees
         rsun = r_o * np.array(([np.cos(lambda_e*pi/180)],[np.cos(epsilon*pi/180)*np.sin(lambda_e*pi/180)],[np.sin(epsilon*pi/180)*np.sin(lambda_e*pi/180)]))
+        
+        return rsun*(149597871)*1000     #in m
 
-        return rsun*(149597871)     #in km
+    def Position_of_satellite():
+        S_EIC = self.Sun_Position() #- self.sensor.satellite_vector
+        return S_EIC

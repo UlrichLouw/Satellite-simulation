@@ -1,14 +1,20 @@
 import numpy as np
 
+def rad2deg(rad):
+    return rad / np.pi * 180
+
+def deg2rad(deg):
+    return deg / 180 * np.pi
+
 def euler_to_quaternion(roll, pitch, yaw):
     # This function is used to translate the euler angles (roll, pitch, yaw) to quaternions
-
+    roll, pitch, yaw = [deg2rad(roll), deg2rad(pitch), deg2rad(yaw)]
     qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
     qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
     qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
     qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
 
-    return [qx, qy, qz, qw]
+    return np.array(([qx, qy, qz, qw]))
 
 def quaternion_error(current_quaternion, command_quaternion):
     # For the control of the ADCS the control system will provide a command quaternion. The difference
