@@ -6,6 +6,13 @@ def rad2deg(rad):
 def deg2rad(deg):
     return deg / 180 * np.pi
 
+def A_to_quaternion(A):
+    qw = 0.5 * np.sqrt(1 + A[0,0] + A[1,1] + A[2,2])
+    qx = 1/(4*qw) * (A[1,2] - A[2,1])
+    qy = 1/(4*qw) * (A[2,0] - A[0,2])
+    qz = 1/(4*qw) * (A[0,1] - A[1,0])
+    return np.array(([qx, qy, qz, qw]))
+
 def euler_to_quaternion(roll, pitch, yaw):
     # This function is used to translate the euler angles (roll, pitch, yaw) to quaternions
     roll, pitch, yaw = [deg2rad(roll), deg2rad(pitch), deg2rad(yaw)]

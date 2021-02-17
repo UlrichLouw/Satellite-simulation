@@ -5,29 +5,23 @@ import numpy as np
 pi = math.pi
 class orbit:
     def __init__(self):
-        self.we = SET_PARAMS.we
+        self.w_earth = SET_PARAMS.w_earth
         self.a_G0 = SET_PARAMS.a_G0
-        self.position_vector = SET_PARAMS.position_vector
-        self.velocity_vector = SET_PARAMS.velocity_vector
-        #self.sensor = Sensors()
 
     def EFC_to_EIC(self, t):
-        a_G = self.we * t + self.a_G0
+        a_G = self.w_earth * t + self.a_G0   # angle in radians form the greenwich
         A = np.array(([[np.cos(a_G), -np.sin(a_G), 0], [np.sin(a_G), np.cos(a_G), 0], [0,0,1]]))
         return A
 
-    def EIC_to_ORC(self):
+    def EIC_to_ORC(self, position_vector, velocity_vector):
         # position vector - Height from center of earth, 
-        c = -self.position_vector   # position vector must be measured by sensors
-        b = np.matmul(self.velocity_vector, self.position_vector)/(np.linalg.norm(np.matmul(self.velocity_vector, self.position_vector)))
-        a = np.matmul(b,c)
-        A = np.concatenate((a,b,c))
+        position_vector = position_vector/np.linalg.norm(position_vector)
+        velocity_vector = velocity_vector/np.linalg.norm(velocity_vector)
+        c = -position_vector   # position vector must be measured by sensors
+        b = np.cross(velocity_vector, position_vector)/(np.linalg.norm(np.cross(velocity_vector, position_vector)))
+        a = np.cross(b,c)
+        A = np.reshape(np.array(([a],[b],[c])),(3,3))
         return A
-
-    def rotation(self):
-        pass
-
-
 
 class Earth:   
     def __init__(self):
@@ -64,18 +58,3 @@ class Earth:
             V = V + (Re/rs)**(n+1) * sum_
 
         return V
-
-    def Sun_Position(self):
-        T_jc = (J_T - 2452545)/36525
-        M_o = 357.527723300 + 35999.050340*T_jc     #in degrees
-        lambda_Mo = 280.460618400 + 36000.770053610*T_jc        #degrees
-        lambda_e = lambda_Mo + 1.914666471*np.sin(M_o*pi/180) + 0.019994643*math.sin(2*M_o*pi/180)      #degrees
-        epsilon =  23.439291 - 0.013004200*T_jc                 #degrees
-        r_o = 1.00140612 - 0.016708617*np.cos(M_o*pi/180) - 0.000139589*np.cos(2*M_o*pi/180)        #degrees
-        rsun = r_o * np.array(([np.cos(lambda_e*pi/180)],[np.cos(epsilon*pi/180)*np.sin(lambda_e*pi/180)],[np.sin(epsilon*pi/180)*np.sin(lambda_e*pi/180)]))
-        
-        return rsun*(149597871)*1000     #in m
-
-    def Position_of_satellite():
-        S_EIC = self.Sun_Position() #- self.sensor.satellite_vector
-        return S_EIC

@@ -9,20 +9,21 @@ class Disturbances:
         self.phi_d = np.zeros((3,1)) #arbitrary phase
         self.position_vector_of_wheels = np.identity(3)*SET_PARAMS.Dimensions/2 #radius from COM
         self.orbit = orbit()
+        self.sense = Sensors()
 
     def Gravity_gradient_func(self, A):
         zoB = A * np.array(([[0],[0],[1]]))
-        kgx = 3 * SET_PARAMS.we**2 * (SET_PARAMS.Iz - SET_PARAMS.Iy)
-        kgy = 3 * SET_PARAMS.we**2 * (SET_PARAMS.Ix - SET_PARAMS.Iz)
-        kgz = 3 * SET_PARAMS.we**2 * (SET_PARAMS.Iy - SET_PARAMS.Ix)
+        kgx = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Iz - SET_PARAMS.Iy)
+        kgy = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Ix - SET_PARAMS.Iz)
+        kgz = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Iy - SET_PARAMS.Ix)
         Ngg = np.array(([kgx*A[1,2]*A[2,2]],[kgy*A[0][2]*A[2][2]],[kgz*A[0,2]*A[1,2]]))
         
         return Ngg
 
-    def Aerodynamic(self, DCM):
-        r_sat = Sensors.satellite_vector
-        v_A_EIC = np.matmul(np.array(([[0],[0],[SET_PARAMS.we]])),r_sat)
-        v_ORC = np.matmul(self.orbit.EIC_to_ORC(),v_A_EIC)
+    def Aerodynamic(self, DCM, EIC_to_ORC):
+        r_sat = np.array(([self.sense.r_sat]))
+        v_A_EIC = np.matmul(np.array(([[0],[0],[SET_PARAMS.w_earth]])),r_sat)
+        v_ORC = np.matmul(EIC_to_ORC,v_A_EIC)
         v_ab = np.matmul(DCM,v_ORC)
         Ai = SET_PARAMS.Surface_area_i
         alpha_i = SET_PARAMS.incidence_angle
@@ -39,7 +40,7 @@ class Disturbances:
 
         va = np.matmul(np.array(([0],[0],[w_e])), r_sat) - SET_PARAMS.v_sat
         N_aero = 0
-        for i in range(n):
+        for i in range(3):
             N_aero = N_aero + p * np.linalg.norm(va)**2 * Ai * np.heaviside(np.cos(alpha_i))*np.cos(alpha_i)*sigma_t*(r_pi) + (sigma_n * S + (2-sigma_n - sigma_t)*np.cos(alpha_i)*(r_pi))
 
         return N_aero
