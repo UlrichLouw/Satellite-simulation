@@ -4,6 +4,9 @@ import Controller
 from Disturbances import Disturbances
 from Parameters import SET_PARAMS
 from Sensors import Sensors
+from mpl_toolkits.mplot3d import axes3d
+import matplotlib.pyplot as plt
+import time
 
 def Transformation_matrix(q):
     q1, q2, q3, q4 = q[:]
@@ -34,6 +37,7 @@ class Dynamics:
         self.Inertia = np.identity(3)*np.array(([self.Ix, self.Iy, self.Iz]))
         self.Iw = SET_PARAMS.Iw
         self.angular_momentum = SET_PARAMS.initial_angular_momentum
+        self.faster_than_control = SET_PARAMS.faster_than_control
 
     def rungeKutta_h(self, x0, angular, x, h, N_control):
         angular_momentum_derived = N_control/self.Iw
@@ -76,6 +80,7 @@ class Dynamics:
 
 
     def rungeKutta_q(self, x0, y0, x, h):
+        
         wx, wy, wz = self.w_bo[:,0]
         n = int(np.round((x - x0)/h))
 
@@ -94,21 +99,24 @@ class Dynamics:
         return y
 
     def rotation(self):
-        r_sat, v_sat, self.A_EIC_to_ORC = sense.satellite_vector(self.t)
-        S_O = np.matmul(self.A_EIC_to_ORC, sense.sun(self.t))
+        r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
+        S_EIC, sun_in_view = sense.sun(self.t*self.faster_than_control)
+        S_O = np.matmul(self.A_EIC_to_ORC, S_EIC)
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, r_sat, v_sat)
         self.w_bo = self.w_bi - np.matmul(self.A, np.array(([0],[self.wo],[0])))
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
         self.t += self.dt
-        return self.w_bi, self.q, self.A
-
+        return self.w_bi, self.q, self.A, r_EIC, sun_in_view
 
 if __name__ == "__main__":
     D = Dynamics()
     sense = Sensors()
-    satellite = view.initializeCube()
-    pv = view.ProjectionViewer(640, 480, satellite)
-    for i in range(100000):
-        w, q, A = D.rotation()
-        pv.run(w, q, A)
+    satellite = view.initializeCube(SET_PARAMS.Dimensions)
+    pv = view.ProjectionViewer(1920, 1080, satellite)
+    for i in range(10000):
+        w, q, A, r, sun_in_view = D.rotation()
+        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+            pv.run(w, q, A, r, sun_in_view)
+    
+    

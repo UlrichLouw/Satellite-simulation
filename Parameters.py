@@ -34,13 +34,13 @@ class SET_PARAMS:
     satellite_number_list = '1 25544U'
     international_list = ' 98067A   '
     epoch_list = str("{:.8f}".format(epoch))
-    mean_motion_derivative_first_list = '  .00000000'
+    mean_motion_derivative_first_list = '  .00001764'
     mean_motion_derivative_second_list = '  00000-0'
     Drag_term_list = '  19400-4' # B-star
     Ephereris_list = ' 0'
     element_num_checksum_list = '   703'
     s_list = satellite_number_list + international_list + epoch_list + mean_motion_derivative_first_list + mean_motion_derivative_second_list + Drag_term_list + Ephereris_list + element_num_checksum_list
-    # r list
+    # t list
     line_and_satellite_number_list = '2 27843  '
     inclination_list = str("{:.4f}".format(inclination))
     intermediate_list = '  '
@@ -54,6 +54,11 @@ class SET_PARAMS:
     mean_motion_list = str("{:8f}".format(Mean_motion))
     Epoch_rev_list = '447869'
     t_list = line_and_satellite_number_list + inclination_list + intermediate_list + RAAN_list + intermediate_list_2 + eccentricity_list + perigree_list + intermediate_list_3 + mean_anomaly_list + intermediate_list_4 + mean_motion_list + Epoch_rev_list
+    """
+    Overwrite Jansen vuuren se waardes met sgp4 example
+    """
+    s_list = '1 25544U 98067A   19343.69339541  .00001764  00000-0  38792-4 0  9991'
+    t_list = '2 25544  51.6439 211.2001 0007417  17.6667  85.6398 15.50103472202482'
     """
     position parameters
     """
@@ -73,6 +78,7 @@ class SET_PARAMS:
     h = -8 #
     m = 10
     n = 10
+    Radius_earth = 6371e3 # in m
     w_earth = 7.2921150e-5 #rad/s
     """
     Satellite body
@@ -100,12 +106,18 @@ class SET_PARAMS:
     """
     Control parameters
     """
-    w_ref = np.zeros((3,1))
-    q_ref = np.array(([0, 0, 1, 0]))        #Quaternion_functions.euler_to_quaternion(0,-45,90) #roll, pitch, yaw
+    w_ref = np.zeros((3,1)) # desired angular velocity of satellite
+    q_ref = np.array(([0, 0, 1, 0])) # initial position of satellite
     time = 0
     Ts = 0.1 # Time_step
     Kp = Ts*Ix * 30
     Kd = Ts*Ix * 125
+    """
+    Display parameters
+    """
+    faster_than_control = 10000 # how much faster the satellite will move around the earth in simulation than the control
+    Display = True  # if display is desired or not
+    skip = 10   # the number of iterations before display
 
     
 

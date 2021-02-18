@@ -1,21 +1,35 @@
 import Satellite_body as sat_body
 import pygame
 from operator import itemgetter
+import sys
+import matplotlib
+   
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_agg as agg
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
     def __init__(self, width, height, sat_body):
+        self.fig = plt.figure()
+        self.ax = self.fig.gca(projection='3d')
+        self.canvas = agg.FigureCanvasAgg(self.fig)
         self.width = width
         self.height = height
         self.sat_body = sat_body
+        self.position_ = []
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption('Attitude Determination using Quaternions')
+        pygame.display.set_caption('Satellite rotating around the earth')
         self.background = (10,10,50)
         self.clock = pygame.time.Clock()
         pygame.font.init()
         self.font = pygame.font.SysFont('Comic Sans MS', 30)
+        self.angle = 0
 
-    def run(self,w, q, A):
+    def run(self,w, q, A, r,sun_in_view):
         """ Create a pygame screen until it is closed. """
         running = True
         loopRate = 50
@@ -24,10 +38,14 @@ class ProjectionViewer:
             if event.type == pygame.QUIT:
                 running = False
         self.clock.tick(loopRate)
-        self.display(q,A)
+        self.display(q,A,r,sun_in_view)
         pygame.display.flip()
 
-    def display(self,q,A):
+    def stop(self):
+        pygame.quit()
+        #sys.exit()
+
+    def display(self,q,A,r,sun_in_view):
         """ Draw the wireframes on the screen. """
         self.screen.fill(self.background)
 
@@ -78,6 +96,7 @@ class ProjectionViewer:
                          pvNodes[face.nodeIndexes[2]],
                          pvNodes[face.nodeIndexes[3]]]
             pygame.draw.polygon(self.screen, face.color, pointList)
+        self.plot(r,sun_in_view)
 
     # One vanishing point perspective view algorithm
     def projectOnePointPerspective(self, x, y, z, win_width, win_height, P, S, scaling_constant, pvDepth):
@@ -113,22 +132,44 @@ class ProjectionViewer:
         textRect.topleft = (x, y)
         self.screen.blit(textSurface, textRect)
 
-def initializeCube():
-    width = 1.5
-    length = 1.5
-    height = 1.5
+    def plot(self,r,sun_in_view):
+        self.position_.append(r)
+        position = np.array((self.position_))
+        x = position[:,0]
+        y = position[:,1]
+        z = position[:,2]
+        self.ax.plot(x, y, z, color="r")
+        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+        x = np.cos(u)*np.sin(v)*6371
+        y = np.sin(u)*np.sin(v)*6371
+        z = np.cos(v)*1000
+        if sun_in_view:
+            self.ax.plot_wireframe(x, y, z, color="y")
+        else:
+            self.ax.plot_wireframe(x, y, z, color="b")
+        self.canvas = agg.FigureCanvasAgg(self.fig)
+        self.canvas.draw()
+        renderer = self.canvas.get_renderer()
+        self.ax.view_init(30, self.angle) #ax.view_init(30, angle)
+        self.angle += 5
+        raw_data = renderer.tostring_rgb()
+        size = self.canvas.get_width_height()
+        self.screen.blit(pygame.image.fromstring(raw_data, size, "RGB"), (0,0))
+
+def initializeCube(Dimensions):
+    width, length, height = Dimensions*5
 
     block = sat_body.Wireframe()
 
     block_nodes = [(x, y, z) for x in (-width, width) for y in (-height, height) for z in (-length, length)]
     node_colors = [(255, 255, 255)] * len(block_nodes)
     block.addNodes(block_nodes, node_colors)
-    block.outputNodes()
+    #block.outputNodes()
 
     faces = [(0, 2, 6, 4), (0, 1, 3, 2), (1, 3, 7, 5), (4, 5, 7, 6), (2, 3, 7, 6), (0, 1, 5, 4)]
     colors = [(255, 0, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255), (255, 255, 0)]
     block.addFaces(faces, colors)
-    block.outputFaces()
+    #block.outputFaces()
 
     return block
 
