@@ -100,14 +100,14 @@ class Dynamics:
 
     def rotation(self):
         r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
-        S_EIC, sun_in_view = sense.sun(self.t*self.faster_than_control)
+        S_EIC, sun_in_view, rsun = sense.sun(self.t*self.faster_than_control)
         S_O = np.matmul(self.A_EIC_to_ORC, S_EIC)
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, r_sat, v_sat)
         self.w_bo = self.w_bi - np.matmul(self.A, np.array(([0],[self.wo],[0])))
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
         self.t += self.dt
-        return self.w_bi, self.q, self.A, r_EIC, sun_in_view
+        return self.w_bi, self.q, self.A, r_EIC, sun_in_view, rsun
 
 if __name__ == "__main__":
     D = Dynamics()
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     satellite = view.initializeCube(SET_PARAMS.Dimensions)
     pv = view.ProjectionViewer(1920, 1080, satellite)
     for i in range(10000):
-        w, q, A, r, sun_in_view = D.rotation()
+        w, q, A, r, sun_in_view, rsun = D.rotation()
         if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
             pv.run(w, q, A, r, sun_in_view)
     

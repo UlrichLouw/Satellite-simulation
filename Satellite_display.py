@@ -3,6 +3,7 @@ import pygame
 from operator import itemgetter
 import sys
 import matplotlib
+from Parameters import SET_PARAMS
    
 matplotlib.use("Agg")
 
@@ -15,7 +16,11 @@ class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
     def __init__(self, width, height, sat_body):
         self.fig = plt.figure()
+        self.Radius_earth = SET_PARAMS.Radius_earth/1000
         self.ax = self.fig.gca(projection='3d')
+        self.ax.set_xlim3d(-self.Radius_earth*2, self.Radius_earth*2)
+        self.ax.set_ylim3d(-self.Radius_earth*2, self.Radius_earth*2)
+        self.ax.set_zlim3d(-self.Radius_earth*2, self.Radius_earth*2)
         self.canvas = agg.FigureCanvasAgg(self.fig)
         self.width = width
         self.height = height
@@ -28,6 +33,8 @@ class ProjectionViewer:
         pygame.font.init()
         self.font = pygame.font.SysFont('Comic Sans MS', 30)
         self.angle = 0
+        self.step = 0
+        self.sun_in_view = False
 
     def run(self,w, q, A, r,sun_in_view):
         """ Create a pygame screen until it is closed. """
@@ -133,28 +140,37 @@ class ProjectionViewer:
         self.screen.blit(textSurface, textRect)
 
     def plot(self,r,sun_in_view):
+        if self.sun_in_view != sun_in_view or self.step == 0:
+            u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+            x = np.cos(u)*np.sin(v)*(self.Radius_earth)
+            y = np.sin(u)*np.sin(v)*(self.Radius_earth)
+            z = np.cos(v)*(self.Radius_earth)
+            if sun_in_view:
+                self.ax.plot_wireframe(x, y, z, color="c")
+            else:
+                self.ax.plot_wireframe(x, y, z, color="b")
+            self.sun_in_view = sun_in_view
+
+        self.step += 1
         self.position_.append(r)
         position = np.array((self.position_))
         x = position[:,0]
         y = position[:,1]
         z = position[:,2]
-        self.ax.plot(x, y, z, color="r")
-        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-        x = np.cos(u)*np.sin(v)*6371
-        y = np.sin(u)*np.sin(v)*6371
-        z = np.cos(v)*1000
-        if sun_in_view:
-            self.ax.plot_wireframe(x, y, z, color="y")
-        else:
-            self.ax.plot_wireframe(x, y, z, color="b")
+        if self.step%100 == 0:
+            self.position_ = self.position_[int(len(self.position_)/2):-1]
+        self.ax.plot(x, y, z, color="k")
+        self.ax.plot(x[-1],y[-1],z[-1], color="r", marker="P")
         self.canvas = agg.FigureCanvasAgg(self.fig)
         self.canvas.draw()
         renderer = self.canvas.get_renderer()
-        self.ax.view_init(30, self.angle) #ax.view_init(30, angle)
-        self.angle += 5
+        self.ax.view_init(15, self.angle) #ax.view_init(30, angle)
+        self.angle += 1
+        print(self.angle)
         raw_data = renderer.tostring_rgb()
         size = self.canvas.get_width_height()
         self.screen.blit(pygame.image.fromstring(raw_data, size, "RGB"), (0,0))
+        
 
 def initializeCube(Dimensions):
     width, length, height = Dimensions*5

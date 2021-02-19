@@ -117,7 +117,7 @@ class SET_PARAMS:
     """
     faster_than_control = 10000 # how much faster the satellite will move around the earth in simulation than the control
     Display = True  # if display is desired or not
-    skip = 10   # the number of iterations before display
+    skip = 20   # the number of iterations before display
 
     
 

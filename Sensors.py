@@ -31,15 +31,15 @@ class Sensors:
         rsun = r_o * np.array(([np.cos(lambda_e*pi/180)],[np.cos(epsilon*pi/180)*np.sin(lambda_e*pi/180)],[np.sin(epsilon*pi/180)*np.sin(lambda_e*pi/180)]))
         rsun = rsun*(149597871)*1000
         S_EIC = rsun - np.reshape(self.r_sat_EIC, (3,1))
-        norm_S_EIC = np.linalg.norm(np.array((S_EIC[0,0],S_EIC[2,0])))
-        norm_rsun = np.linalg.norm(np.array((rsun[0,0],rsun[2,0])))
-        theta = np.arccos(np.dot(np.array((S_EIC[0,0],S_EIC[2,0])), np.array((rsun[0,0],rsun[2,0])))/(norm_rsun*norm_S_EIC))
+        norm_S_EIC = np.linalg.norm(np.array((S_EIC[0,0], S_EIC[2,0])))
+        norm_rsun = np.linalg.norm(np.array((rsun[0,0], rsun[2,0])))
+        theta = np.arccos(np.dot(np.array((S_EIC[0,0], S_EIC[2,0])), np.array((rsun[0,0], rsun[2,0])))/(norm_rsun*norm_S_EIC))
         D_sun = np.sqrt(norm_S_EIC**2 + norm_rsun**2 - 2*(norm_S_EIC*norm_rsun)*np.cos(theta))
-        if (self.r_sat_EIC[2] < 0 or self.r_sat_EIC[1] < 0 or self.r_sat_EIC[0] < 0) or D_sun < SET_PARAMS.Radius_earth:
+        if (norm_rsun > norm_S_EIC) and D_sun < SET_PARAMS.Radius_earth:
             self.in_sun_view = False
         else:
             self.in_sun_view = True
-        return S_EIC, self.in_sun_view     #in m
+        return S_EIC, self.in_sun_view, rsun     #in m
 
     def nadir(self):
         vector = np.array(([0,0,0]))
