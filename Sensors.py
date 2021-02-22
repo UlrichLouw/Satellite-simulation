@@ -1,25 +1,29 @@
 import numpy as np
-from Earth_model import orbit
+import Earth_model
 from Parameters import SET_PARAMS
 from sgp4.api import Satrec, WGS72
 from sgp4.api import jday
+from skyfield.api import wgs84, EarthSatellite
 import math
 pi = math.pi
+
 
 class Sensors:
     def __init__(self):
         self.sat = Satrec()
-        self.orbit = orbit()
+        self.orbit = Earth_model.orbit()
+        self.earth = Earth_model.Earth()
+        """       
         self.sat.sgp4init(WGS72, 'i', 5, SET_PARAMS.epoch, 
         SET_PARAMS.Drag_term, 0.0, 0.0, SET_PARAMS.eccentricity, 
         SET_PARAMS.Argument_of_perigee, SET_PARAMS.inclination,
         SET_PARAMS.Mean_anomaly, SET_PARAMS.wo*60, SET_PARAMS.RAAN
         )  
+        """
         self.satellite = self.sat.twoline2rv(SET_PARAMS.s_list, SET_PARAMS.t_list)
         e, self.r_sat, self.v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr)  
-
-    def noise(self):
-        pass
+        self.coordinates_to_earth = EarthSatellite(SET_PARAMS.s_list, SET_PARAMS.t_list)
+        self.first = 0
 
     def sun(self, t):
         T_jc = (SET_PARAMS.J_t + SET_PARAMS.fr + t * 3.168808781403e-8 - 2452545)/36525
@@ -31,37 +35,36 @@ class Sensors:
         rsun = r_o * np.array(([np.cos(lambda_e*pi/180)],[np.cos(epsilon*pi/180)*np.sin(lambda_e*pi/180)],[np.sin(epsilon*pi/180)*np.sin(lambda_e*pi/180)]))
         rsun = rsun*(149597871)*1000
         S_EIC = rsun - np.reshape(self.r_sat_EIC, (3,1))
-        norm_S_EIC = np.linalg.norm(np.array((S_EIC[0,0], S_EIC[2,0])))
-        norm_rsun = np.linalg.norm(np.array((rsun[0,0], rsun[2,0])))
-        theta = np.arccos(np.dot(np.array((S_EIC[0,0], S_EIC[2,0])), np.array((rsun[0,0], rsun[2,0])))/(norm_rsun*norm_S_EIC))
-        D_sun = np.sqrt(norm_S_EIC**2 + norm_rsun**2 - 2*(norm_S_EIC*norm_rsun)*np.cos(theta))
-        if (norm_rsun > norm_S_EIC) and D_sun < SET_PARAMS.Radius_earth:
+        norm_S_EIC = np.linalg.norm(S_EIC)
+        norm_rsun = np.linalg.norm(rsun)
+        norm_r_sat = np.linalg.norm(self.r_sat_EIC)
+        theta_e = np.arcsin(SET_PARAMS.Radius_earth/norm_r_sat)
+        theta_s = np.arcsin(SET_PARAMS.Radius_sun/norm_S_EIC)
+        theta = np.arccos(np.dot(self.r_sat_EIC, rsun[:,0])/(norm_rsun*norm_r_sat))
+        if (theta_e > theta_s) and (theta < (theta_e-theta_s)):
             self.in_sun_view = False
         else:
             self.in_sun_view = True
-        return S_EIC, self.in_sun_view, rsun     #in m
+        return S_EIC, self.in_sun_view     #in m
 
-    def nadir(self):
-        vector = np.array(([0,0,0]))
-        return True, vector
-
-    def magnetometer(self):
-        pass
-
-    def current_height_above_earth(self):
-        h = 500e3
-        return h
+    def magnetometer(self, t):
+        latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
+        self.V = self.earth.scalar_potential_function(latitude, longitude, altitude)
+        delta_V = self.earth.geomagnetic_field_strength_func(self.V)
+        if self.first == 0:
+            B = np.zeros((3,1))
+            self.first = 1
+        else:
+            B = delta_V/(self.r_sat_EIC-self.r_sat_EIC_prev)
+        self.r_sat_EIC_prev = self.r_sat_EIC
+        return B
 
     def satellite_vector(self, t):
-        e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t * 3.168808781403e-8)
+        e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t/86400)
         self.r_sat_EIC = np.array((r_sat))*1000 # convert r_sat to m
         self.v_sat_EIC = np.array((v_sat))*1000 # v_sat to m/s
-        """
         self.A_EFC_to_EIC = self.orbit.EFC_to_EIC(t)
-        self.A_EIC_to_EFC = np.linalg.inv(self.A_EFC_to_EIC)
-        self.r_sat_EFC = np.matmul(self.A_EIC_to_EFC, self.r_sat_EIC)
-        self.v_sat_EFC = np.matmul(self.A_EIC_to_EFC, self.v_sat_EIC)
-        """
+        self.r_sat_EFC = np.matmul(np.linalg.inv(self.A_EFC_to_EIC),self.r_sat_EIC/1000)
         self.A_EIC_to_ORC = self.orbit.EIC_to_ORC(self.r_sat_EIC, self.v_sat_EIC)
         self.r_sat = np.matmul(self.A_EIC_to_ORC, self.r_sat_EIC)
         self.v_sat = np.matmul(self.A_EIC_to_ORC, self.v_sat_EIC)

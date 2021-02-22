@@ -7,6 +7,25 @@ from Sensors import Sensors
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 import time
+import csv
+import pandas as pd
+
+csv_columns = ["Sun", "Magnetometer", "Earth","Wheel speed", "Sun in view"]
+
+Data = {
+    "Orbit": [],
+    "Fault": []
+}
+
+Orbit_Data = {
+    "Sun": [],
+    "Magnetometer": [],
+    "Earth": [],
+    "Wheel speed": [],
+    "Sun in view": []
+}
+
+csv_file = "Orbit.csv"
 
 def Transformation_matrix(q):
     q1, q2, q3, q4 = q[:]
@@ -38,6 +57,7 @@ class Dynamics:
         self.Iw = SET_PARAMS.Iw
         self.angular_momentum = SET_PARAMS.initial_angular_momentum
         self.faster_than_control = SET_PARAMS.faster_than_control
+        self.control = Controller.Control()
 
     def rungeKutta_h(self, x0, angular, x, h, N_control):
         angular_momentum_derived = N_control/self.Iw
@@ -61,7 +81,7 @@ class Dynamics:
         N_rw = np.reshape(self.dist.Wheel_Imbalance(w, x),(3,1))
         Ngg = self.dist.Gravity_gradient_func(self.A)
         N_disturbance = Ngg + N_aero + N_rw #Ignore gyroscope
-        N_control = Controller.Control().control(w, self.q, self.Inertia)
+        N_control = self.control.control(w, self.q, self.Inertia, self.B)
         #self.angular_momentum = self.rungeKutta_h(x0, self.angular_momentum, x, h, N_control)
         n = int(np.round((x - x0)/h))
 
@@ -99,24 +119,49 @@ class Dynamics:
         return y
 
     def rotation(self):
-        r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
-        S_EIC, sun_in_view, rsun = sense.sun(self.t*self.faster_than_control)
-        S_O = np.matmul(self.A_EIC_to_ORC, S_EIC)
+        self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
+        self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control)
+        #S_O = np.matmul(self.A_EIC_to_ORC, self.S_EIC)
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
-        self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, r_sat, v_sat)
+        self.Beta = sense.magnetometer(self.t)
+        self.B = np.matmul(self.A,np.matmul(self.A_EIC_to_ORC,self.Beta))
+        self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, self.r_sat, v_sat)
         self.w_bo = self.w_bi - np.matmul(self.A, np.array(([0],[self.wo],[0])))
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
         self.t += self.dt
-        return self.w_bi, self.q, self.A, r_EIC, sun_in_view, rsun
+        self.update()
+        return self.w_bi, self.q, self.A, r_EIC, self.sun_in_view
+
+    def update(self):
+        Orbit_Data["Magnetometer"].append(self.Beta + np.random.normal(0,SET_PARAMS.magnetometer_noise,self.B.shape))
+        Orbit_Data["Sun"].append(self.S_EIC)
+        Orbit_Data["Earth"].append(self.r_sat)
+        Orbit_Data["Wheel speed"].append(self.w_bi)
+        Orbit_Data["Sun in view"].append(self.sun_in_view)
+
 
 if __name__ == "__main__":
     D = Dynamics()
     sense = Sensors()
-    satellite = view.initializeCube(SET_PARAMS.Dimensions)
-    pv = view.ProjectionViewer(1920, 1080, satellite)
-    for i in range(10000):
-        w, q, A, r, sun_in_view, rsun = D.rotation()
-        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
-            pv.run(w, q, A, r, sun_in_view)
-    
-    
+
+    if SET_PARAMS.Display:
+        satellite = view.initializeCube(SET_PARAMS.Dimensions)
+        pv = view.ProjectionViewer(1920, 1080, satellite)
+
+    for index in SET_PARAMS.Fault_names:     
+        for i in range(int(SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+            w, q, A, r, sun_in_view = D.rotation()
+            if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+                pv.run(w, q, A, r, sun_in_view)
+
+        if SET_PARAMS.Save_file:
+            df = pd.DataFrame.from_dict(Data)
+            df.to_csv(index=False)
+            with open(csv_file, 'w') as csvfile:
+                writer = csv.writer(csvfile)
+                for key, value in Data.items():
+                    writer.writerow([key, value])
+        else:
+            Data["Orbit"].append(Orbit_Data)
+            Data["Fault"].append(SET_PARAMS.Fault_names[index])
+

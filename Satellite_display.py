@@ -166,7 +166,6 @@ class ProjectionViewer:
         renderer = self.canvas.get_renderer()
         self.ax.view_init(15, self.angle) #ax.view_init(30, angle)
         self.angle += 1
-        print(self.angle)
         raw_data = renderer.tostring_rgb()
         size = self.canvas.get_width_height()
         self.screen.blit(pygame.image.fromstring(raw_data, size, "RGB"), (0,0))

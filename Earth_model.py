@@ -1,8 +1,46 @@
 from Parameters import SET_PARAMS
 import math
 import numpy as np
+from scipy import special
 
 pi = math.pi
+
+def ecef2lla(R):
+    # x, y and z are scalars or vectors in meters
+    x, y, z = R
+    x = np.array([x]).reshape(np.array([x]).shape[-1], 1)
+    y = np.array([y]).reshape(np.array([y]).shape[-1], 1)
+    z = np.array([z]).reshape(np.array([z]).shape[-1], 1)
+
+    a=6378137
+    a_sq=a**2
+    e = 8.181919084261345e-2
+    e_sq = 6.69437999014e-3
+
+    f = 1/298.257223563
+    b = a*(1-f)
+
+    # calculations:
+    r = np.sqrt(x**2 + y**2)
+    ep_sq  = (a**2-b**2)/b**2
+    ee = (a**2-b**2)
+    f = (54*b**2)*(z**2)
+    g = r**2 + (1 - e_sq)*(z**2) - e_sq*ee*2
+    c = (e_sq**2)*f*r**2/(g**3)
+    s = (1 + c + np.sqrt(c**2 + 2*c))**(1/3.)
+    p = f/(3.*(g**2)*(s + (1./s) + 1)**2)
+    q = np.sqrt(1 + 2*p*e_sq**2)
+    r_0 = -(p*e_sq*r)/(1+q) + np.sqrt(0.5*(a**2)*(1+(1./q)) - p*(z**2)*(1-e_sq)/(q*(1+q)) - 0.5*p*(r**2))
+    u = np.sqrt((r - e_sq*r_0)**2 + z**2)
+    v = np.sqrt((r - e_sq*r_0)**2 + (1 - e_sq)*z**2)
+    z_0 = (b**2)*z/(a*v)
+    h = u*(1 - b**2/(a*v))
+    phi = np.arctan((z + ep_sq*z_0)/r)
+    lambd = np.arctan2(y, x)
+
+
+    return phi*180/np.pi, lambd*180/np.pi, h
+
 class orbit:
     def __init__(self):
         self.w_earth = SET_PARAMS.w_earth
@@ -25,7 +63,6 @@ class orbit:
 
 class Earth:   
     def __init__(self):
-        J_t = SET_PARAMS.J_t
         self.V = np.zeros((2))
         self.first = 1      # This is required for the geomagnetic_field_strength_func to initiate correctly
 
@@ -39,10 +76,10 @@ class Earth:
 
         return delta_V
 
-    def scalar_potential_function(self, orbit_radius, coevelation, longitude):
-        rs = orbit_radius
-        theta = coevelation
-        lambda_ = longitude
+    def scalar_potential_function(self, latitude, longitude, altitude):
+        rs = altitude[0,0]
+        theta = 90 - latitude[0,0]
+        lambda_ = longitude[0,0]
         k = SET_PARAMS.k
         g = SET_PARAMS.g
         h = SET_PARAMS.h
@@ -52,7 +89,6 @@ class Earth:
         for n in range(1,k):
             sum_ = 0
             for m in range(n):
-                print(P)
                 sum_ = sum_ + (g*np.cos(m*lambda_) + h*np.sin(m*lambda_)) * P[m,n]
             
             V = V + (Re/rs)**(n+1) * sum_
