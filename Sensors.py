@@ -45,10 +45,15 @@ class Sensors:
         B = self.earth.scalar_potential_function(latitude, longitude, altitude)
         return B
 
-    def satellite_vector(self, t):
+    def satellite_vector(self, t, error=False):
         e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t/86400)
         self.r_sat_EIC = np.array((r_sat))*1000 # convert r_sat to m
         self.v_sat_EIC = np.array((v_sat))*1000 # v_sat to m/s
+        
+        if error:       # If the earth sensor is faulty then it will provide the incorrect satellite vectors
+            self.r_sat_EIC += np.random.normal(0,np.linalg.norm(self.r_sat_EIC)*SET_PARAMS.Earth_sensor_fault_noise,self.r_sat_EIC.shape)
+            self.v_sat_EIC += np.random.normal(0,np.linalg.norm(self.v_sat_EIC)*SET_PARAMS.Earth_sensor_fault_noise,self.v_sat_EIC.shape)
+        
         self.A_EFC_to_EIC = self.orbit.EFC_to_EIC(t)
         self.r_sat_EFC = np.matmul(np.linalg.inv(self.A_EFC_to_EIC),self.r_sat_EIC/1000)
         self.A_EIC_to_ORC = self.orbit.EIC_to_ORC(self.r_sat_EIC, self.v_sat_EIC)

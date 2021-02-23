@@ -52,7 +52,7 @@ class orbit:
 
     def EFC_to_EIC(self, t):
         a_G = self.w_earth * t + self.a_G0   # angle in radians form the greenwich
-        A = np.array(([[np.cos(a_G), -np.sin(a_G), 0], [np.sin(a_G), np.cos(a_G), 0], [0,0,1]]))
+        A = np.array(([[np.cos(a_G), -np.sin(a_G), 0.0], [np.sin(a_G), np.cos(a_G), 0.0], [0.0,0.0,1.0]]))
         return A
 
     def EIC_to_ORC(self, position_vector, velocity_vector):

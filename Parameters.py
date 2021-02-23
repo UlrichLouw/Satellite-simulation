@@ -121,11 +121,11 @@ class SET_PARAMS:
     """
     Max parameters of actuaters
     """
-    theta_d_max = 2 #degrees per second (theta derived), angular velocity
-    theta_d_d = 0.133 # degrees per second^2 (rotation speed derived), angular acceleration
-    h_ws_max = 60e-3 # Nms
-    N_ws_max = 5e-3 #Nm
-    M_magnetic_max = 1 #Am^2
+    wheel_angular_d_max = 2 #degrees per second (theta derived), angular velocity
+    wheel_angular_d_d = 0.133 # degrees per second^2 (rotation speed derived), angular acceleration
+    h_ws_max = 15.7e-3 # Nms
+    N_ws_max = 1.05e-3 #Nm
+    M_magnetic_max = 25e-6 #Nm
     """
     Control parameters
     """
@@ -133,38 +133,43 @@ class SET_PARAMS:
     q_ref = np.array(([0, 0, 1, 0])) # initial position of satellite
     time = 0
     Ts = 1 # Time_step
-    Kp = Ts*Ix * 30
-    Kd = Ts*Ix * 125
-    Kd_magnet = 1
+    wn = 5e-8/Ts
+    Kp = 20 # 2 * wn**2 #Ts*Ix * 30
+    Kd = 1000 # 2 * wn * 0.707 #Ts*Ix * 340
+    Kd_magnet = 0
+    Ks_magnet = 0
     """
     Display parameters
     """
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = False  # if display is desired or not
-    skip = 20   # the number of iterations before display
+    Display = True  # if display is desired or not
+    skip = 1  # the number of iterations before display
     """
     Visualize measurements
     """
-    Visualize = False
+    Visualize = True
     """
     Sensor Parameters
     """
-    magnetometer_noise = 0.5e-6 # standard deviation of magnetometer noise in Tesla
+    magnetometer_noise = 0.5e-7 # standard deviation of magnetometer noise in Tesla
     sun_noise = 9 # degrees away from where the actual sun is
     """
     CSV file parameters
     """
     Save_csv_file = False
     """
-    Fault types
+    Fault types and fault parameters
     """
     Fault_names = {
-        1: "Reaction_wheel",
+        1: "None",
         2: "Sun sensor",
         3: "Magnetometer",
         4: "Earth sensor",
-        5: "None"
+        5: "Reaction_wheel"
     }
     
+    Fault_time = Period/2
+
+    Earth_sensor_fault_noise = 1        #The scale of the noise from the earth sensor
 
 
