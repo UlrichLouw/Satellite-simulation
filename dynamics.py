@@ -1,31 +1,37 @@
 import numpy as np
-import Satellite_display as view
 import Controller
 from Disturbances import Disturbances
 from Parameters import SET_PARAMS
 from Sensors import Sensors
-from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 import time
 import csv
 import pandas as pd
 
+if SET_PARAMS.Display:
+    import Satellite_display as view
+
 csv_columns = ["Sun", "Magnetometer", "Earth","Wheel speed", "Sun in view"]
 
-Data = {
-    "Orbit": [],
-    "Fault": []
-}
-
+# The Orbit_Data dictionary is used to store all the measurements for each timestep (Ts)
+# Each Orbit has an induced fault within the ADCS. 
 Orbit_Data = {
-    "Sun": [],
-    "Magnetometer": [],
-    "Earth": [],
-    "Wheel speed": [],
-    "Sun in view": []
+    "Sun": {"x": [],"y": [], "z": []},              #S_o measurement (vector of sun in ORC)
+    "Magnetometer": {"x": [],"y": [], "z": []},     #B vector in SBC
+    "Earth": {"x": [],"y": [], "z": []},            #Satellite position vector in ORC
+    "Wheel speed": {"x": [],"y": [], "z": []},      #Wheel angular velocity of each reaction wheel
+    "Sun in view": []       #True or False values depending on whether the sun is in view of the satellite
 }
 
-csv_file = "Orbit.csv"
+# The Data dictionary is used to store each orbit
+Data = {
+    "Orbit": [],            #The data of a single orbit
+    "Fault": []             #The fault induced during the orbit
+}
+
+# File names for the storage of the data attained during the simulation
+csv_file = "Fault-prediction/Data_files/Faults.csv"
+pickle_filename = "Fault-prediction/Data_files/Faults.pkl"
 
 def Transformation_matrix(q):
     q1, q2, q3, q4 = q[:]
@@ -40,6 +46,36 @@ def Transformation_matrix(q):
     A[2,1] = 2*(q2*q3 - q1*q4)
     A[2,2] = -q1**2-q2**2+q3**2+q4**2
     return A
+
+def save_as_csv():
+    df = pd.DataFrame.from_dict(Data)
+    df.to_csv(index=False)
+    with open(csv_file, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        for key, value in Data.items():
+            writer.writerow([key, value])
+
+def save_as_pickle():
+    Data_frame = pd.DataFrame.from_dict(Data)
+    Data_frame.to_pickle(pickle_filename)
+
+def visualize_data():
+    for i in Orbit_Data:
+        if i == "Sun in view":
+            fig = plt.figure()
+            y = np.array((Orbit_Data[i]))
+            plt.plot(y)
+            plt.title(i)
+            plt.pause(1)
+        else:
+            fig = plt.figure()
+            for j in Orbit_Data[i]:
+                y = np.array((Orbit_Data[i][j]))
+                plt.plot(y)
+
+            plt.legend(Orbit_Data[i])
+            plt.title(i)
+            plt.pause(1)
 
 class Dynamics:
     def __init__(self):
@@ -58,17 +94,18 @@ class Dynamics:
         self.angular_momentum = SET_PARAMS.initial_angular_momentum
         self.faster_than_control = SET_PARAMS.faster_than_control
         self.control = Controller.Control()
+        self.angular_momentum = np.zeros((3,1))
 
     def rungeKutta_h(self, x0, angular, x, h, N_control):
-        angular_momentum_derived = N_control/self.Iw
+        angular_momentum_derived = N_control
         n = int(np.round((x - x0)/h))
 
         y = angular
         for i in range(n):
-            k1 = h*(y - angular_momentum_derived) 
-            k2 = h*((y - angular_momentum_derived) + 0.5*k1) 
-            k3 = h*((y - angular_momentum_derived) + 0.5*k2) 
-            k4 = h*((y - angular_momentum_derived) + 0.5*k3) 
+            k1 = h*(y) 
+            k2 = h*((y) + 0.5*k1) 
+            k3 = h*((y) + 0.5*k2) 
+            k4 = h*((y) + 0.5*k3) 
 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
@@ -82,7 +119,10 @@ class Dynamics:
         Ngg = self.dist.Gravity_gradient_func(self.A)
         N_disturbance = Ngg + N_aero + N_rw #Ignore gyroscope
         N_control = self.control.control(w, self.q, self.Inertia, self.B)
-        #self.angular_momentum = self.rungeKutta_h(x0, self.angular_momentum, x, h, N_control)
+        self.angular_momentum = self.angular_momentum + N_control*self.dt
+        """        
+        self.angular_momentum = self.rungeKutta_h(x0, self.angular_momentum, x, h, N_control) 
+        """
         n = int(np.round((x - x0)/h))
 
         y = w
@@ -121,9 +161,10 @@ class Dynamics:
     def rotation(self):
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
         self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control)
-        #S_O = np.matmul(self.A_EIC_to_ORC, self.S_EIC)
+        self.S_o = np.matmul(self.A_EIC_to_ORC, self.S_EIC)
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
-        self.Beta = sense.magnetometer(self.t)
+        self.Beta = sense.magnetometer(self.t) 
+        self.Beta += np.random.normal(0,SET_PARAMS.magnetometer_noise,self.Beta.shape)
         self.B = np.matmul(self.A,np.matmul(self.A_EIC_to_ORC,self.Beta))
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, self.r_sat, v_sat)
         self.w_bo = self.w_bi - np.matmul(self.A, np.array(([0],[self.wo],[0])))
@@ -133,10 +174,13 @@ class Dynamics:
         return self.w_bi, self.q, self.A, r_EIC, self.sun_in_view
 
     def update(self):
-        Orbit_Data["Magnetometer"].append(self.Beta + np.random.normal(0,SET_PARAMS.magnetometer_noise,self.B.shape))
-        Orbit_Data["Sun"].append(self.S_EIC)
-        Orbit_Data["Earth"].append(self.r_sat)
-        Orbit_Data["Wheel speed"].append(self.w_bi)
+        i = 0
+        for index in Orbit_Data["Sun"]:
+            Orbit_Data["Magnetometer"][index].append(self.B[i])
+            Orbit_Data["Sun"][index].append(self.S_o[i][0])
+            Orbit_Data["Earth"][index].append(self.r_sat[i])
+            Orbit_Data["Wheel speed"][index].append(self.angular_momentum[i][0])
+            i += 1
         Orbit_Data["Sun in view"].append(self.sun_in_view)
 
 
@@ -154,14 +198,14 @@ if __name__ == "__main__":
             if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
                 pv.run(w, q, A, r, sun_in_view)
 
-        if SET_PARAMS.Save_file:
-            df = pd.DataFrame.from_dict(Data)
-            df.to_csv(index=False)
-            with open(csv_file, 'w') as csvfile:
-                writer = csv.writer(csvfile)
-                for key, value in Data.items():
-                    writer.writerow([key, value])
-        else:
-            Data["Orbit"].append(Orbit_Data)
-            Data["Fault"].append(SET_PARAMS.Fault_names[index])
+        Data["Orbit"].append(Orbit_Data)
+        Data["Fault"].append(SET_PARAMS.Fault_names[index])
+
+        if SET_PARAMS.visualize:
+            visualize_data()
+
+    if SET_PARAMS.Save_csv_file:
+        save_as_csv()
+    else:
+        save_as_pickle()
 

@@ -26,8 +26,8 @@ class Control:
     
     def magnetic_torquers(self, B):
         if self.first == 0:
-            My = 0.0
             self.first = True
+            My = 0.0
             Beta = 0.0
         else:
             Beta = np.arccos(B[1]/np.linalg.norm(B))

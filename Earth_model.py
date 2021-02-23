@@ -1,7 +1,11 @@
 from Parameters import SET_PARAMS
 import math
 import numpy as np
-from scipy import special
+import igrf_utils
+from scipy import interpolate
+IGRF_FILE = r'utils/IGRF13.shc'
+igrf = igrf_utils.load_shcfile(IGRF_FILE, None)
+f = interpolate.interp1d(igrf.time, igrf.coeffs)
 
 pi = math.pi
 
@@ -65,7 +69,9 @@ class Earth:
     def __init__(self):
         self.V = np.zeros((2))
         self.first = 1      # This is required for the geomagnetic_field_strength_func to initiate correctly
+        self.coeffs = f(2021) 
 
+    """
     def geomagnetic_field_strength_func(self, V):
         if self.first:
             self.V = [V,V]
@@ -75,22 +81,14 @@ class Earth:
         self.V[1] = V
 
         return delta_V
+    """
 
     def scalar_potential_function(self, latitude, longitude, altitude):
         rs = altitude[0,0]
         theta = 90 - latitude[0,0]
         lambda_ = longitude[0,0]
         k = SET_PARAMS.k
-        g = SET_PARAMS.g
-        h = SET_PARAMS.h
-        Re = SET_PARAMS.Re
-        P = special.lpmn(k,k,theta)[0]
-        V = 0
-        for n in range(1,k):
-            sum_ = 0
-            for m in range(n):
-                sum_ = sum_ + (g*np.cos(m*lambda_) + h*np.sin(m*lambda_)) * P[m,n]
-            
-            V = V + (Re/rs)**(n+1) * sum_
+        B = igrf_utils.synth_values(self.coeffs, rs, theta, lambda_, 10, 3)
+        B = np.array((B[0],B[1],B[2]))
 
-        return V
+        return B

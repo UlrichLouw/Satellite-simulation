@@ -13,13 +13,6 @@ class Sensors:
         self.sat = Satrec()
         self.orbit = Earth_model.orbit()
         self.earth = Earth_model.Earth()
-        """       
-        self.sat.sgp4init(WGS72, 'i', 5, SET_PARAMS.epoch, 
-        SET_PARAMS.Drag_term, 0.0, 0.0, SET_PARAMS.eccentricity, 
-        SET_PARAMS.Argument_of_perigee, SET_PARAMS.inclination,
-        SET_PARAMS.Mean_anomaly, SET_PARAMS.wo*60, SET_PARAMS.RAAN
-        )  
-        """
         self.satellite = self.sat.twoline2rv(SET_PARAMS.s_list, SET_PARAMS.t_list)
         e, self.r_sat, self.v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr)  
         self.coordinates_to_earth = EarthSatellite(SET_PARAMS.s_list, SET_PARAMS.t_list)
@@ -49,14 +42,7 @@ class Sensors:
 
     def magnetometer(self, t):
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
-        self.V = self.earth.scalar_potential_function(latitude, longitude, altitude)
-        delta_V = self.earth.geomagnetic_field_strength_func(self.V)
-        if self.first == 0:
-            B = np.zeros((3,1))
-            self.first = 1
-        else:
-            B = delta_V/(self.r_sat_EIC-self.r_sat_EIC_prev)
-        self.r_sat_EIC_prev = self.r_sat_EIC
+        B = self.earth.scalar_potential_function(latitude, longitude, altitude)
         return B
 
     def satellite_vector(self, t):

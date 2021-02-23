@@ -95,11 +95,7 @@ class SET_PARAMS:
     """
     Earth effects (geomagnetic)
     """
-    k = 2 #order of expansion
-    g = -2.2 #defined by IGRF
-    h = -8.0 #
-    m = 10
-    n = 10
+    k = 10 #order of expansion
     Radius_earth = 6371e3 # in m
     w_earth = 7.2921150e-5 #rad/s
     """
@@ -147,6 +143,10 @@ class SET_PARAMS:
     Display = False  # if display is desired or not
     skip = 20   # the number of iterations before display
     """
+    Visualize measurements
+    """
+    Visualize = False
+    """
     Sensor Parameters
     """
     magnetometer_noise = 0.5e-6 # standard deviation of magnetometer noise in Tesla
@@ -154,7 +154,7 @@ class SET_PARAMS:
     """
     CSV file parameters
     """
-    Save_file = False
+    Save_csv_file = False
     """
     Fault types
     """
@@ -163,6 +163,7 @@ class SET_PARAMS:
         2: "Sun sensor",
         3: "Magnetometer",
         4: "Earth sensor",
+        5: "None"
     }
     
 
