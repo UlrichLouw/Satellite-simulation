@@ -71,18 +71,6 @@ class Earth:
         self.first = 1      # This is required for the geomagnetic_field_strength_func to initiate correctly
         self.coeffs = f(2021) 
 
-    """
-    def geomagnetic_field_strength_func(self, V):
-        if self.first:
-            self.V = [V,V]
-            self.first = 0
-        self.V[0] = V
-        delta_V = -(self.V[0]-self.V[1])
-        self.V[1] = V
-
-        return delta_V
-    """
-
     def scalar_potential_function(self, latitude, longitude, altitude):
         rs = altitude[0,0]
         theta = 90 - latitude[0,0]

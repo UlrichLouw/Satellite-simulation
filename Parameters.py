@@ -28,28 +28,6 @@ class SET_PARAMS:
     Drag_term = 0.000194 # Remember to update the list term
     wo = (Mean_motion/(3600*24)) / (2*pi*Semi_major_axis * 1000) #rad/s
     """
-    Sun synchronous parameters
-    """
-    """
-    eccentricity = 0.0001313349 # Update eccentricity list
-    inclination = 98.000640878#degrees
-    Semi_major_axis = 7008.4715082 #km The distance from the satellite to the earth + the earth radius
-    Height_above_earth_surface = 700e3 #distance above earth surface
-    Scale_height = 8500 #scale height of earth atmosphere
-    RAAN = 71.497449685*pi/180 #Right ascension of the ascending node in radians
-    AP = 69.532933059 #argument of perigee
-    Re = 6371.2 #km magnetic reference radius
-    Mean_motion = 15.2355000000 #rev/day
-    Mean_anomaly = 290.42758119 #degrees
-    Argument_of_perigee = 69.532933059 #in degrees
-    omega = Argument_of_perigee
-    Period = 5834.805 #seconds
-    J_t,fr = jday(2020,2,16,15,30,0) #current julian date
-    epoch = J_t - 2433281.5 + fr
-    Drag_term = 0.000194 # Remember to update the list term
-    wo = (Mean_motion/(3600*24)) / (2*pi*Semi_major_axis * 1000) #rad/s
-    """
-    """
     TLE data
     """
     # s list
@@ -133,26 +111,28 @@ class SET_PARAMS:
     q_ref = np.array(([0, 0, 1, 0])) # initial position of satellite
     time = 0
     Ts = 1 # Time_step
-    wn = 5e-8/Ts
-    Kp = 20 # 2 * wn**2 #Ts*Ix * 30
-    Kd = 1000 # 2 * wn * 0.707 #Ts*Ix * 340
-    Kd_magnet = 0
-    Ks_magnet = 0
+    wn = 5e-6/Ts
+    Kp = Ts*Ix * 12.5 #2 * wn**2 
+    Kd = Ts*Ix * 125 #2 * wn * 0.707
+    Kd_magnet = 10
+    Ks_magnet = 100
     """
     Display parameters
     """
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = True  # if display is desired or not
-    skip = 1  # the number of iterations before display
+    Display = False # if display is desired or not
+    skip = 20  # the number of iterations before display
+    Number_of_orbits = 1
     """
     Visualize measurements
     """
-    Visualize = True
+    Visualize = False
     """
     Sensor Parameters
     """
-    magnetometer_noise = 0.5e-7 # standard deviation of magnetometer noise in Tesla
-    sun_noise = 9 # degrees away from where the actual sun is
+    Magnetometer_noise = 0.5e-7         #standard deviation of magnetometer noise in Tesla
+    Sun_noise = 0.0001                    #standard deviation away from where the actual sun is
+    Earth_noise = 0.0001                  #standard deviation away from where the actual earth is
     """
     CSV file parameters
     """
@@ -165,11 +145,16 @@ class SET_PARAMS:
         2: "Sun sensor",
         3: "Magnetometer",
         4: "Earth sensor",
-        5: "Reaction_wheel"
+        5: "Reaction wheel",
+        6: "Control"
     }
     
-    Fault_time = Period/2
+    Fault_time = int(Period/2)
 
-    Earth_sensor_fault_noise = 1        #The scale of the noise from the earth sensor
+    Earth_sensor_fault_noise = 0.5        #The scale of the noise from the earth sensor
+
+    Magnetometer_fault_noise = 0.5        #The scale of the noise from the magnetometer
+
+    Sun_sensor_fault_noise = 0.5          #The scale of the noise from the sun sensor
 
 

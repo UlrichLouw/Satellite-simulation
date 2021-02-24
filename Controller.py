@@ -5,23 +5,6 @@ from Parameters import SET_PARAMS
 
 pi = math.pi
 
-def rungeKutta_h(self, x0, angular, x, h, N_control):
-    angular_momentum_derived = N_control
-    n = int(np.round((x - x0)/h))
-
-    y = angular
-    for i in range(n):
-        k1 = h*(y) 
-        k2 = h*((y) + 0.5*k1) 
-        k3 = h*((y) + 0.5*k2) 
-        k4 = h*((y) + 0.5*k3) 
-
-        y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
-
-        x0 = x0 + h; 
-    
-    return y
-
 class Control:
     def __init__(self):
         self.Kp = SET_PARAMS.Kp
@@ -29,19 +12,16 @@ class Control:
         self.w_ref = SET_PARAMS.w_ref
         self.q_ref = SET_PARAMS.q_ref
         self.N_max = SET_PARAMS.N_ws_max
-        self.first = False
-        self.angular_momentum = np.zeros((3,1))
+        self.first = True
 
     def control(self, w, q, Inertia, B, error = False):
         if error:
-            N = self.magnetic_torquers(B, w)       #control_wheels do not respond
-            self.angular_momentum = np.zeros((3,1))
+            N_magnet = self.magnetic_torquers(B, w)       #control_wheels do not respond
+            N = np.zeros((3,1))
         else:
             N = self.control_wheel(w, q, Inertia)
-            self.angular_momentum += N*SET_PARAMS.Ts
-            self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
-            N = self.magnetic_torquers(B, w)
-        return N, self.angular_momentum
+            N_magnet = self.magnetic_torquers(B, w)
+        return N_magnet, N
 
     def control_wheel(self, w, q, Inertia):
         q_error = Quaternion_functions.quaternion_error(q, self.q_ref)
@@ -50,8 +30,8 @@ class Control:
         return N
     
     def magnetic_torquers(self, B, w):
-        if self.first == 0:
-            self.first = True
+        if self.first == True:
+            self.first = False
             My = 0.0
             Mx = 0.0
             Mz = 0.0
