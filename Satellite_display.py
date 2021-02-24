@@ -15,8 +15,8 @@ import numpy as np
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
     def __init__(self, width, height, sat_body):
-        self.fig = plt.figure()
         self.Radius_earth = SET_PARAMS.Radius_earth/1000
+        self.fig = plt.figure()
         self.ax = self.fig.gca(projection='3d')
         self.ax.set_xlim3d(-self.Radius_earth*2, self.Radius_earth*2)
         self.ax.set_ylim3d(-self.Radius_earth*2, self.Radius_earth*2)
@@ -146,9 +146,9 @@ class ProjectionViewer:
             y = np.sin(u)*np.sin(v)*(self.Radius_earth)
             z = np.cos(v)*(self.Radius_earth)
             if sun_in_view:
-                self.ax.plot_wireframe(x, y, z, color="c")
+                self.ax.plot_wireframe(x, y, z, color="y", alpha = 0.1)
             else:
-                self.ax.plot_wireframe(x, y, z, color="b")
+                self.ax.plot_wireframe(x, y, z, color="b", alpha = 0.1)
             self.sun_in_view = sun_in_view
 
         self.step += 1

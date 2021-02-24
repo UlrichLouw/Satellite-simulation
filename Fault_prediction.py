@@ -18,4 +18,5 @@ def Binary_split(classified_data):
 
 if __name__ == "__main__":
     for index in SET_PARAMS.Fault_names:
-        Orbit = Binary_split(Data["Orbit"][SET_PARAMS.Fault_names[index]])
+        for direction in SET_PARAMS.Fault_names[index]:
+            Orbit = Binary_split(Data["Orbit"][index + direction])

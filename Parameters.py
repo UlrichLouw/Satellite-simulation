@@ -93,8 +93,8 @@ class SET_PARAMS:
     """
     Satellite initial position
     """
-    quaternion_initial = Quaternion_functions.euler_to_quaternion(0,0,0) #roll, pitch, yaw
-    wbi = np.array(([0.1],[0.05],[0.01]))
+    quaternion_initial = np.array(([0, 0, 1, 0])) #Quaternion_functions.euler_to_quaternion(0,0,0) #roll, pitch, yaw
+    wbi = np.array(([0.0],[0.0],[0.0]))
     initial_angular_momentum = np.zeros((3,1))
     """
     Max parameters of actuaters
@@ -131,8 +131,8 @@ class SET_PARAMS:
     Sensor Parameters
     """
     Magnetometer_noise = 0.5e-7         #standard deviation of magnetometer noise in Tesla
-    Sun_noise = 0.0001                    #standard deviation away from where the actual sun is
-    Earth_noise = 0.0001                  #standard deviation away from where the actual earth is
+    Sun_noise = 0.001                    #standard deviation away from where the actual sun is
+    Earth_noise = 0.001                  #standard deviation away from where the actual earth is
     """
     CSV file parameters
     """
@@ -141,12 +141,12 @@ class SET_PARAMS:
     Fault types and fault parameters
     """
     Fault_names = {
-        1: "None",
-        2: "Sun sensor",
-        3: "Magnetometer",
-        4: "Earth sensor",
-        5: "Reaction wheel",
-        6: "Control"
+        "None": {"None": True},
+        "Sun sensor": {"x": True, "y": True, "z": True},
+        "Magnetometer": {"x": True, "y": True, "z": True},
+        "Earth sensor": {"x": True, "y": True, "z": True},
+        "Reaction wheel": {"x": True, "y": True, "z": True},
+        "Control": {"all": True}
     }
     
     Fault_time = int(Period/2)

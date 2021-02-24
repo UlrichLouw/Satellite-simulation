@@ -105,10 +105,10 @@ class Dynamics:
         self.control = Controller.Control()
         self.angular_momentum = np.zeros((3,1))
         self.fault = "None"
-        self.Earth_sensor_fault = False
-        self.Reaction_wheel_fault = False
-        self.Sun_sensor_fault = False
-        self.Magnetometer_fault = False
+        self.Earth_sensor_fault = [False, False, False]
+        self.Reaction_wheel_fault = [False, False, False]
+        self.Sun_sensor_fault = [False, False, False]
+        self.Magnetometer_fault = [False, False, False]
         self.Control_fault = False
         # The Orbit_Data dictionary is used to store all the measurements for each timestep (Ts)
         # Each Orbit has an induced fault within the ADCS. 
@@ -129,8 +129,8 @@ class Dynamics:
         N_disturbance = Ngg + N_aero + N_rw #Ignore gyroscope
         N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.Control_fault)
 
-        if self.Reaction_wheel_fault:
-            self.angular_momentum = np.zeros((3,1))
+        if any(self.Reaction_wheel_fault):
+            self.angular_momentum[np.where(self.Reaction_wheel_fault)[0]] = 0
         else:
             self.angular_momentum = np.clip(rungeKutta_h(self, x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
         
@@ -171,24 +171,31 @@ class Dynamics:
         
         return y
 
-    def rotation(self, index):
+    def rotation(self, index, direction):
         if self.t == SET_PARAMS.Fault_time:
-            if SET_PARAMS.Fault_names[index] == "Sun sensor":
-                self.Sun_sensor_fault = True
-
-            elif SET_PARAMS.Fault_names[index] == "Magnetometer":
-                self.Magnetometer_fault = True
+            if direction == "x":
+                i = 0
+            elif direction == "y":
+                i = 1
+            elif direction == "z":
+                i = 2
             
-            elif SET_PARAMS.Fault_names[index] == "Earth sensor":
-                self.Earth_sensor_fault = True
+            if index == "Sun sensor":
+                self.Sun_sensor_fault[i] = True
 
-            elif SET_PARAMS.Fault_names[index] == "Reaction wheel":
-                self.Reaction_wheel_fault = True
+            elif index == "Magnetometer":
+                self.Magnetometer_fault[i] = True
             
-            elif SET_PARAMS.Fault_names[index] == "Control":
+            elif index == "Earth sensor":
+                self.Earth_sensor_fault[i] = True
+
+            elif index == "Reaction wheel":
+                self.Reaction_wheel_fault[i] = True
+            
+            elif index == "Control":
                 self.Control_fault = True
             
-            self.fault = SET_PARAMS.Fault_names[index]
+            self.fault = index
 
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
         self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)
@@ -219,22 +226,22 @@ class Dynamics:
 
 if __name__ == "__main__":
     for index in SET_PARAMS.Fault_names:  
-        
-        if SET_PARAMS.Display:
-            satellite = view.initializeCube(SET_PARAMS.Dimensions)
-            pv = view.ProjectionViewer(1920, 1080, satellite)
+        for direction in SET_PARAMS.Fault_names[index]:
+            if SET_PARAMS.Display:
+                satellite = view.initializeCube(SET_PARAMS.Dimensions)
+                pv = view.ProjectionViewer(1920, 1080, satellite)
 
-        D = Dynamics()
-        sense = Sensors()   
-        for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
-            w, q, A, r, sun_in_view = D.rotation(index)
-            if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
-                pv.run(w, q, A, r, sun_in_view)
+            D = Dynamics()
+            sense = Sensors()   
+            for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+                w, q, A, r, sun_in_view = D.rotation(index, direction)
+                if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+                    pv.run(w, q, A, r, sun_in_view)
 
-        Data["Orbit"][SET_PARAMS.Fault_names[index]] = D.Orbit_Data
+            Data["Orbit"][index] = D.Orbit_Data
 
-        if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
-            visualize_data(D)
+            if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
+                visualize_data(D)
 
     if SET_PARAMS.Save_csv_file:
         save_as_csv()
