@@ -10,22 +10,22 @@ class SET_PARAMS:
     """
     Orbit parameters
     """
-    eccentricity = 0.000092  # Update eccentricity list
-    inclination = 97.4 #degrees
-    Semi_major_axis = 6879.55 #km The distance from the satellite to the earth + the earth radius
-    Height_above_earth_surface = 500e3 #distance above earth surface
-    Scale_height = 8500 #scale height of earth atmosphere
-    RAAN = 275*pi/180 #Right ascension of the ascending node in radians
-    AP = 0 #argument of perigee
-    Re = 6371.2 #km magnetic reference radius
-    Mean_motion = 15.2355000000 #rev/day
-    Mean_anomaly = 29.3 #degrees
-    Argument_of_perigee = 57.4 #in degrees
+    eccentricity = 0.000092             # Update eccentricity list
+    inclination = 97.4                  # degrees
+    Semi_major_axis = 6879.55           # km The distance from the satellite to the earth + the earth radius
+    Height_above_earth_surface = 500e3  # distance above earth surface
+    Scale_height = 8500                 # scale height of earth atmosphere
+    RAAN = 275*pi/180                   # Right ascension of the ascending node in radians
+    AP = 0                              # argument of perigee
+    Re = 6371.2                         # km magnetic reference radius
+    Mean_motion = 15.2355000000         # rev/day
+    Mean_anomaly = 29.3                 # degrees
+    Argument_of_perigee = 57.4          # in degrees
     omega = Argument_of_perigee
-    Period = 86400/Mean_motion #seconds
-    J_t,fr = jday(2020,2,16,15,30,0) #current julian date
+    Period = 86400/Mean_motion          # seconds
+    J_t,fr = jday(2020,2,16,15,30,0)    # current julian date
     epoch = J_t - 2433281.5 + fr
-    Drag_term = 0.000194 # Remember to update the list term
+    Drag_term = 0.000194                # Remember to update the list term
     wo = (Mean_motion/(3600*24)) / (2*pi*Semi_major_axis * 1000) #rad/s
     """
     TLE data
@@ -57,12 +57,14 @@ class SET_PARAMS:
     """
     Overwrite Jansen vuuren se waardes met sgp4 example
     """
-    #s_list = '1 25544U 98067A   19343.69339541  .00001764  00000-0  38792-4 0  9991'
-    #t_list = '2 25544  51.6439 211.2001 0007417  17.6667  85.6398 15.50103472202482'
+    """
+    s_list = '1 25544U 98067A   19343.69339541  .00001764  00000-0  38792-4 0  9991'
+    t_list = '2 25544  51.6439 211.2001 0007417  17.6667  85.6398 15.50103472202482'
+    """
     """
     position parameters
     """
-    a_G0 = 0
+    a_G0 = 0        # Angle from the greenwhich
     """
     Atmosphere (Aerodynamic)
     """
@@ -120,7 +122,7 @@ class SET_PARAMS:
     Display parameters
     """
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = False # if display is desired or not
+    Display = True # if display is desired or not
     skip = 20  # the number of iterations before display
     Number_of_orbits = 1
     """

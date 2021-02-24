@@ -8,9 +8,13 @@ import time
 import csv
 import pandas as pd
 
+# The matplotlib cannot display plots while visual simulation runs.
+# Consequently the Display and visualize parameters in Parameters 
+# must be set as desired
 if SET_PARAMS.Display:
     import Satellite_display as view
 
+# The csv columns if a csv output is required
 csv_columns = ["Sun", "Magnetometer", "Earth","Wheel speed", "Sun in view"]
 
 # The Data dictionary is used to store each orbit
@@ -22,6 +26,7 @@ Data = {
 csv_file = "Data_files/Faults.csv"
 pickle_filename = "Data_files/Faults.pkl"
 
+# The DCM must be calculated depending on the current quaternions
 def Transformation_matrix(q):
     q1, q2, q3, q4 = q[:]
     A = np.zeros((3,3))
@@ -36,6 +41,7 @@ def Transformation_matrix(q):
     A[2,2] = -q1**2-q2**2+q3**2+q4**2
     return A
 
+# Function to save a csv file of simulation data
 def save_as_csv():
     df = pd.DataFrame.from_dict(Data)
     df.to_csv(index=False)
@@ -44,10 +50,12 @@ def save_as_csv():
         for key, value in Data.items():
             writer.writerow([key, value])
 
+# Function to save a pickle file of simulation data
 def save_as_pickle():
     Data_frame = pd.DataFrame.from_dict(Data)
     Data_frame.to_pickle(pickle_filename)
 
+# Function to visualize data as graphs
 def visualize_data(D):
     for i in D.Orbit_Data:
         if i == "Current fault":
@@ -69,6 +77,7 @@ def visualize_data(D):
                 plt.title(i)
                 plt.show() #plt.pause(1)
 
+# Function to calculate the angular momentum based on the derivative thereof
 def rungeKutta_h(self, x0, angular, x, h, N_control):
     angular_momentum_derived = N_control
     n = int(np.round((x - x0)/h))
@@ -87,25 +96,26 @@ def rungeKutta_h(self, x0, angular, x, h, N_control):
     return y
 
 class Dynamics:
+    # Initiate initial parameters for the beginning of each orbit set (fault)
     def __init__(self):
-        self.dist = Disturbances()
-        self.w_bi = SET_PARAMS.wbi
-        self.wo = SET_PARAMS.wo
-        self.q = SET_PARAMS.quaternion_initial
-        self.t = SET_PARAMS.time
-        self.dt = SET_PARAMS.Ts
-        self.dh = self.dt/10
-        self.Ix = SET_PARAMS.Ix
-        self.Iy = SET_PARAMS.Iy
-        self.Iz = SET_PARAMS.Iz
+        self.dist = Disturbances()                  # Disturbances of the simulation
+        self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
+        self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
+        self.q = SET_PARAMS.quaternion_initial      # Quaternion position
+        self.t = SET_PARAMS.time                    # Beginning time
+        self.dt = SET_PARAMS.Ts                     # Time step
+        self.dh = self.dt/10                        # Size of increments for Runga-kutta method
+        self.Ix = SET_PARAMS.Ix                     # Ixx inertia
+        self.Iy = SET_PARAMS.Iy                     # Iyy inertia
+        self.Iz = SET_PARAMS.Iz                     # Izz inertia
         self.Inertia = np.identity(3)*np.array(([self.Ix, self.Iy, self.Iz]))
-        self.Iw = SET_PARAMS.Iw
-        self.angular_momentum = SET_PARAMS.initial_angular_momentum
-        self.faster_than_control = SET_PARAMS.faster_than_control
-        self.control = Controller.Control()
-        self.angular_momentum = np.zeros((3,1))
-        self.fault = "None"
-        self.Earth_sensor_fault = [False, False, False]
+        self.Iw = SET_PARAMS.Iw                     # Inertia of a reaction wheel
+        self.angular_momentum = SET_PARAMS.initial_angular_momentum # Angular momentum of satellite wheels
+        self.faster_than_control = SET_PARAMS.faster_than_control   # If it is required that satellite must move faster around the earth than Ts
+        self.control = Controller.Control()         # Controller.py is used for control of satellite    
+        self.fault = "None"                         # Current fault of the system
+        # All of the faults can be implemented on a single sensor in a specified axis (3)
+        self.Earth_sensor_fault = [False, False, False]     
         self.Reaction_wheel_fault = [False, False, False]
         self.Sun_sensor_fault = [False, False, False]
         self.Magnetometer_fault = [False, False, False]
@@ -121,16 +131,17 @@ class Dynamics:
             "Current fault": []                             #What the fault is that the system is currently experiencing
         }
 
-
+    # Function to calculate the satellite angular velocity based on the derivative thereof
     def rungeKutta_w(self, x0, w, x, h, r_sat):
         N_aero = 0 #self.dist.Aerodynamic(self.A, self.A_EIC_to_ORC)
-        N_rw = np.reshape(self.dist.Wheel_Imbalance(w, x),(3,1))
-        Ngg = self.dist.Gravity_gradient_func(self.A)
-        N_disturbance = Ngg + N_aero + N_rw #Ignore gyroscope
+        N_rw = np.reshape(self.dist.Wheel_Imbalance(w, x),(3,1))    # Disturbance of a reaction wheel imbalance
+        Ngg = self.dist.Gravity_gradient_func(self.A)               # Disturbance of gravity gradient
+        N_disturbance = Ngg + N_aero + N_rw                         # Ignore gyroscope
         N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.Control_fault)
 
         if any(self.Reaction_wheel_fault):
             self.angular_momentum[np.where(self.Reaction_wheel_fault)[0]] = 0
+            self.N_control_wheel[np.where(self.Reaction_wheel_fault)[0]] = 0
         else:
             self.angular_momentum = np.clip(rungeKutta_h(self, x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
         
@@ -140,10 +151,10 @@ class Dynamics:
 
         y = w
         for i in range(n):
-            k1 = h*((N_gyro + (-N_control_magnetic - N_control_wheel + N_disturbance))) 
-            k2 = h*((N_gyro + (-N_control_magnetic - N_control_wheel + N_disturbance)) + 0.5*k1) 
-            k3 = h*((N_gyro + (-N_control_magnetic - N_control_wheel + N_disturbance)) + 0.5*k2) 
-            k4 = h*((N_gyro + (-N_control_magnetic - N_control_wheel + N_disturbance)) + 0.5*k3) 
+            k1 = h*((N_gyro + (-N_control_magnetic  + N_disturbance))) 
+            k2 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k1) 
+            k3 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k2) 
+            k4 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k3) 
 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
@@ -151,7 +162,7 @@ class Dynamics:
         
         return np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
-
+    # Function to calculate the satellite quaternion position based on the derivative thereof
     def rungeKutta_q(self, x0, y0, x, h):
         
         wx, wy, wz = self.w_bo[:,0]
@@ -198,7 +209,7 @@ class Dynamics:
             self.fault = index
 
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
-        self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)
+        self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)    
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
         self.r_sat_sbc = np.matmul(self.A, self.r_sat)
         self.S_o = np.matmul(self.A_EIC_to_ORC, self.S_EIC)
