@@ -13,15 +13,22 @@ class Control:
         self.q_ref = SET_PARAMS.q_ref
         self.N_max = SET_PARAMS.N_ws_max
         self.first = True
+        self.mode = SET_PARAMS.Mode
 
     def control(self, w, q, Inertia, B, error = False):
-        if error:
-            N_magnet = self.magnetic_torquers(B, w)       #control_wheels do not respond
-            N = np.zeros((3,1))
-        else:
-            N = self.control_wheel(w, q, Inertia)
+        if self.mode == "Nominal":   #Normal operation
+            N_magnet = np.zeros((3,1))
+
+            if error:  #control_wheels do not respond
+                N_wheel = np.zeros((3,1))
+            else:
+                N_wheel = self.control_wheel(w, q, Inertia)
+
+        elif mode == "Safe":    #Detumbling mode
             N_magnet = self.magnetic_torquers(B, w)
-        return N_magnet, N
+            N_wheel = np.zeros((3,1))
+    
+        return N_magnet, N_wheel
 
     def control_wheel(self, w, q, Inertia):
         q_error = Quaternion_functions.quaternion_error(q, self.q_ref)

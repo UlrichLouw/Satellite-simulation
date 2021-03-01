@@ -63,8 +63,8 @@ class Disturbances:
         return N_s
 
     def dynamic(self, rotation_rate, t):
-        Ud = 2.08 * 1e-9 #For the RW-0.06 wheels in kg/m^2; Ud = m*r*d
-        omega = rotation_rate #rad/s rotation rate of wheel   
+        Ud = 2.08 * 1e-9        #For the RW-0.06 wheels in kg/m^2; Ud = m*r*d
+        omega = rotation_rate   #rad/s rotation rate of wheel   
         N_xd = Ud * omega[0,0]**2 * np.array(([np.sin(omega[0,0]*t + self.phi_d[0,0]),np.cos(omega[0,0]*t + self.phi_d[0,0]), 0]))
         N_yd = Ud * omega[1,0]**2 * np.array(([np.cos(omega[1,0]*t + self.phi_d[1,0]), 0, np.sin(omega[1,0]*t + self.phi_d[1,0])]))
         N_zd = Ud * omega[2,0]**2 * np.array(([0, np.sin(omega[2,0]*t + self.phi_d[2,0]), np.cos(omega[2,0]*t + self.phi_d[2,0])]))

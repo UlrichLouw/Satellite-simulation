@@ -136,20 +136,24 @@ class Dynamics:
         N_aero = 0 #self.dist.Aerodynamic(self.A, self.A_EIC_to_ORC)
         N_rw = np.reshape(self.dist.Wheel_Imbalance(w, x),(3,1))    # Disturbance of a reaction wheel imbalance
         Ngg = self.dist.Gravity_gradient_func(self.A)               # Disturbance of gravity gradient
-        N_disturbance = Ngg + N_aero + N_rw                         # Ignore gyroscope
+        
+        # Control torques implemented due to the control law
         N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.Control_fault)
 
+        # Change the reaction wheel and reaction torque to 0 (depending on the fault)
         if any(self.Reaction_wheel_fault):
             self.angular_momentum[np.where(self.Reaction_wheel_fault)[0]] = 0
-            self.N_control_wheel[np.where(self.Reaction_wheel_fault)[0]] = 0
+            N_control_wheel[np.where(self.Reaction_wheel_fault)[0]] = 0
         else:
             self.angular_momentum = np.clip(rungeKutta_h(self, x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
         
         N_gyro = -w * (np.matmul(self.Inertia,w) + self.angular_momentum)
-       
-        n = int(np.round((x - x0)/h))
 
+        N_disturbance = Ngg + N_aero + N_rw + N_gyro                # All then disturbance torques added to the satellite
+
+        n = int(np.round((x - x0)/h))
         y = w
+
         for i in range(n):
             k1 = h*((N_gyro + (-N_control_magnetic  + N_disturbance))) 
             k2 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k1) 
@@ -182,7 +186,7 @@ class Dynamics:
         
         return y
 
-    def rotation(self, index, direction):
+    def Fault_implementation(self, index, direction):
         if self.t == SET_PARAMS.Fault_time:
             if direction == "x":
                 i = 0
@@ -208,6 +212,8 @@ class Dynamics:
             
             self.fault = index
 
+    def rotation(self, index, direction):
+        self.Fault_implementation(index, direction)
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
         self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)    
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
@@ -221,6 +227,7 @@ class Dynamics:
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
         self.t += self.dt
         self.update()
+
         return self.w_bi, self.q, self.A, r_EIC, self.sun_in_view
 
     def update(self):
@@ -236,6 +243,7 @@ class Dynamics:
 
 
 if __name__ == "__main__":
+    # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
     for index in SET_PARAMS.Fault_names:  
         for direction in SET_PARAMS.Fault_names[index]:
             if SET_PARAMS.Display:

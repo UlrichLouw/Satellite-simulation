@@ -116,13 +116,13 @@ class SET_PARAMS:
     wn = 5e-6/Ts
     Kp = Ts*Ix * 12.5 #2 * wn**2 
     Kd = Ts*Ix * 125 #2 * wn * 0.707
-    Kd_magnet = 10
-    Ks_magnet = 100
+    Kd_magnet = 1e-7
+    Ks_magnet = 1e-7
     """
     Display parameters
     """
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = True # if display is desired or not
+    Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
     Number_of_orbits = 1
     """
@@ -159,4 +159,8 @@ class SET_PARAMS:
 
     Sun_sensor_fault_noise = 0.5          #The scale of the noise from the sun sensor
 
+    """
+    Mode of operation
+    """
+    Mode = "Nominal"
 
