@@ -124,7 +124,7 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 1
+    Number_of_orbits = 5
     """
     Visualize measurements
     """
@@ -132,13 +132,13 @@ class SET_PARAMS:
     """
     Sensor Parameters
     """
-    Magnetometer_noise = 0.5e-7         #standard deviation of magnetometer noise in Tesla
-    Sun_noise = 0.001                    #standard deviation away from where the actual sun is
-    Earth_noise = 0.001                  #standard deviation away from where the actual earth is
+    Magnetometer_noise = 0.0001         #standard deviation of magnetometer noise in Tesla
+    Sun_noise = 0.0001                    #standard deviation away from where the actual sun is
+    Earth_noise = 0.0001                  #standard deviation away from where the actual earth is
     """
     CSV file parameters
     """
-    Save_csv_file = False
+    Save_excel_file = True
     """
     Fault types and fault parameters
     """
@@ -150,15 +150,25 @@ class SET_PARAMS:
         "Reaction wheel": {"x": True, "y": True, "z": True},
         "Control": {"all": True}
     }
-    
-    Fault_time = int(Period/2)
 
-    Earth_sensor_fault_noise = 0.5        #The scale of the noise from the earth sensor
+    Fault_time = int(Number_of_orbits*Period/2)
 
-    Magnetometer_fault_noise = 0.5        #The scale of the noise from the magnetometer
+    Earth_sensor_fault_noise = 0.01        #The scale of the noise from the earth sensor
 
-    Sun_sensor_fault_noise = 0.5          #The scale of the noise from the sun sensor
+    Magnetometer_fault_noise = 0.01        #The scale of the noise from the magnetometer
 
+    Sun_sensor_fault_noise = 0.01          #The scale of the noise from the sun sensor
+
+    """
+    Storage of data for prediction
+    """
+    data_mode = "_buffer"
+    buffer_mode = True
+    buffer_size = 20
+
+    # File names for the storage of the data attained during the simulation
+    excel_filename = "Data_files/Faults" + data_mode + ".xls"
+    pickle_filename = "Data_files/Faults" + data_mode + ".pkl"
     """
     Mode of operation
     """
