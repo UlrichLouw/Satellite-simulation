@@ -7,6 +7,8 @@ from sklearn.preprocessing import StandardScaler
 from tensorflow import feature_column
 from tensorflow.keras import layers
 from sklearn.metrics import confusion_matrix
+import collections
+
 sc = StandardScaler()
 
 excel_file = SET_PARAMS.excel_filename
@@ -35,6 +37,11 @@ def df_to_dataset(dataframe, shuffle=True, batch_size=32):
 if __name__ == "__main__":
     confusion_matrices = []
     All_orbits = []
+    buffer = True
+    binary_set = True
+    X_buffer = []
+    Y_buffer = []
+    
     for index in SET_PARAMS.Fault_names:
         for direction in SET_PARAMS.Fault_names[index]:
             if SET_PARAMS.Save_excel_file == True:
@@ -44,16 +51,37 @@ if __name__ == "__main__":
                 pickle_file = SET_PARAMS.pickle_filename
                 Data = pd.read_pickle(pickle_file)
             
-            Orbit = Binary_split_with_buffer(Data)
+            if binary_set == True:
+                Orbit = Data.drop(columns = ['Current fault'], inplace = True)
+            else:
+                Orbit = Binary_split_with_buffer(Data)
+
             Orbit.drop(columns = ['Sun in view'], inplace = True)
+            X = Orbit.iloc[:,1:-1].values
+            Y = Orbit.iloc[:,-1].values
+
+            buffer_x = collections.deque(maxlen = SET_PARAMS.buffer_size)
+            buffer_y = Y[SET_PARAMS.buffer_size:]
+
+            for i in range(SET_PARAMS.buffer_size - 1):
+                buffer_x.append(X[i,:])
+
+            for i in range(SET_PARAMS.buffer_size, X.shape[0]):
+                buffer_x.append(X[i,:])
+                X_buffer.append(np.asarray(buffer_x).flatten())
+            
+            Y_buffer.append(buffer_y)
             All_orbits.append(Orbit)
     
-    All_orbits = pd.concat(All_orbits)
-    X = All_orbits.iloc[:,1:-1].values
-    Y = All_orbits.iloc[:,-1].values
-        
-    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.2)
+    if buffer == False:
+        All_orbits = pd.concat(All_orbits)
+        X = All_orbits.iloc[:,1:-1].values
+        Y = All_orbits.iloc[:,-1].values
+    else:
+        X = np.asarray(X_buffer)
+        Y = np.asarray(Y_buffer).reshape(X.shape[0], 1)
 
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.2)
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
 
@@ -70,7 +98,7 @@ if __name__ == "__main__":
     classifier = tf.estimator.DNNClassifier(feature_columns= feature_columns, hidden_units = [30,10], n_classes = 2)
 
     model = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(units=12, activation = 'relu'),
+            tf.keras.layers.Dense(units=X.shape[1], activation = 'relu'),
             tf.keras.layers.Dense(units=128, activation='relu'),
             tf.keras.layers.Dropout(rate=0.2),
             tf.keras.layers.Dense(units=128, activation='relu'),
@@ -79,7 +107,7 @@ if __name__ == "__main__":
 
     model.compile(optimizer='adam',
             loss='binary_crossentropy',
-            metrics=['accuracy'])
+            metrics=['Precision'])
 
     batch_size = 32 # A small batch sized is used for demonstration purposes
 

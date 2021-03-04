@@ -120,7 +120,8 @@ class Dynamics:
             "Angular momentum of wheels y": [], 
             "Angular momentum of wheels z": [],      #Wheel angular velocity of each reaction wheel
             "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
-            "Current fault": []                             #What the fault is that the system is currently experiencing
+            "Current fault": [],                            #What the fault is that the system is currently experiencing
+            "Current fault binary": []
         }
 
     # Function to calculate the satellite angular velocity based on the derivative thereof
@@ -237,6 +238,7 @@ class Dynamics:
         self.Orbit_Data["Angular momentum of wheels z"].append(self.angular_momentum[2][0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)
         self.Orbit_Data["Current fault"].append(self.fault)
+        self.Orbit_Data["Current fault binary"].append(0 if self.fault == None else 1)
 
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
