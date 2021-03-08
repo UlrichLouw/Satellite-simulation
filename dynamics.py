@@ -8,7 +8,22 @@ import time
 import csv
 import pandas as pd
 
-
+Fault_names_to_num = {
+    "NoneNone": 1,
+    "Sun sensorx": 2,
+    "Sun sensory": 3, 
+    "Sun sensorz": 4,
+    "Magnetometerx": 5, 
+    "Magnetometery": 6, 
+    "Magnetometerz": 7,
+    "Earth sensorx": 8, 
+    "Earth sensory": 9, 
+    "Earth sensorz": 10,
+    "Reaction wheelx": 11, 
+    "Reaction wheely": 12, 
+    "Reaction wheelz": 13,
+    "Controlall": 14
+}
 # The matplotlib cannot display plots while visual simulation runs.
 # Consequently the Display and visualize parameters in Parameters 
 # must be set as desired
@@ -103,7 +118,7 @@ class Dynamics:
         self.angular_momentum = SET_PARAMS.initial_angular_momentum # Angular momentum of satellite wheels
         self.faster_than_control = SET_PARAMS.faster_than_control   # If it is required that satellite must move faster around the earth than Ts
         self.control = Controller.Control()         # Controller.py is used for control of satellite    
-        self.fault = "None"                         # Current fault of the system
+        self.fault = "NoneNone"                         # Current fault of the system
         # All of the faults can be implemented on a single sensor in a specified axis (3)
         self.Earth_sensor_fault = [False, False, False]     
         self.Reaction_wheel_fault = [False, False, False]
@@ -121,8 +136,10 @@ class Dynamics:
             "Angular momentum of wheels z": [],      #Wheel angular velocity of each reaction wheel
             "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
             "Current fault": [],                            #What the fault is that the system is currently experiencing
+            "Current fault numeric": [],
             "Current fault binary": []
         }
+        self.zeros = np.zeros((14,), dtype = int)
 
     # Function to calculate the satellite angular velocity based on the derivative thereof
     def rungeKutta_w(self, x0, w, x, h, r_sat):
@@ -180,7 +197,7 @@ class Dynamics:
         return y
 
     def Fault_implementation(self, index, direction):
-        if self.t == SET_PARAMS.Fault_time:
+        if int(self.t) == SET_PARAMS.Fault_time:
             if direction == "x":
                 i = 0
             elif direction == "y":
@@ -203,7 +220,7 @@ class Dynamics:
             elif index == "Control":
                 self.Control_fault = True
             
-            self.fault = index
+            self.fault = str(index) + str(direction)
 
     def rotation(self, index, direction):
         self.Fault_implementation(index, direction)
@@ -238,7 +255,10 @@ class Dynamics:
         self.Orbit_Data["Angular momentum of wheels z"].append(self.angular_momentum[2][0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)
         self.Orbit_Data["Current fault"].append(self.fault)
-        self.Orbit_Data["Current fault binary"].append(0 if self.fault == None else 1)
+        temp = list(self.zeros)
+        temp[Fault_names_to_num[self.fault] - 1] = 1
+        self.Orbit_Data["Current fault numeric"].append(temp)
+        self.Orbit_Data["Current fault binary"].append(0 if self.fault == "NoneNone" else 1)
 
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA

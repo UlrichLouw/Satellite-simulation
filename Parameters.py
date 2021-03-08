@@ -124,7 +124,7 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 5
+    Number_of_orbits = 2
     """
     Visualize measurements
     """
@@ -144,12 +144,15 @@ class SET_PARAMS:
     """
     Fault_names = {
         "None": {"None": True},
-        "Sun sensor": {"x": True, "y": True, "z": True},
         "Magnetometer": {"x": True, "y": True, "z": True},
         "Earth sensor": {"x": True, "y": True, "z": True},
         "Reaction wheel": {"x": True, "y": True, "z": True},
         "Control": {"all": True}
     }
+    """
+    "Sun sensor": {"x": True, "y": True, "z": True},
+    """
+
 
     Fault_time = int(Number_of_orbits*Period/2)
 
@@ -167,7 +170,7 @@ class SET_PARAMS:
     buffer_size = 20
 
     # File names for the storage of the data attained during the simulation
-    excel_filename = "Data_files/Faults" + data_mode + ".xls"
+    excel_filename = "Data_files/Faults" + data_mode +"without_sun" + ".xls"
     pickle_filename = "Data_files/Faults" + data_mode + ".pkl"
     """
     Mode of operation
