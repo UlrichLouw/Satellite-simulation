@@ -147,12 +147,9 @@ class SET_PARAMS:
         "Magnetometer": {"x": True, "y": True, "z": True},
         "Earth sensor": {"x": True, "y": True, "z": True},
         "Reaction wheel": {"x": True, "y": True, "z": True},
+        "Sun sensor": {"x": True, "y": True, "z": True},
         "Control": {"all": True}
     }
-    """
-    "Sun sensor": {"x": True, "y": True, "z": True},
-    """
-
 
     Fault_time = int(Number_of_orbits*Period/2)
 

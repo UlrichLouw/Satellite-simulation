@@ -225,7 +225,10 @@ class Dynamics:
     def rotation(self, index, direction):
         self.Fault_implementation(index, direction)
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
-        self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)    
+        self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control, self.Sun_sensor_fault)   
+        if self.sun_in_view == False and any(self.Sun_sensor_fault):
+            self.fault = "NoneNone"
+        
         self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
         self.r_sat_sbc = np.matmul(self.A, self.r_sat)
         self.S_o = np.matmul(self.A_EIC_to_ORC, self.S_EIC)

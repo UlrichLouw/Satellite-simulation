@@ -229,7 +229,7 @@ if __name__ == "__main__":
     X_buffer = []
     Y_buffer = []
     ind = 0
-    use_previously_saved_models = True
+    use_previously_saved_models = False
     categorical_num = True
     
     for index in SET_PARAMS.Fault_names:
@@ -267,7 +267,6 @@ if __name__ == "__main__":
                 X_buffer.append(np.asarray(buffer_x).flatten())
                 X_buffer_replaced.append(np.asarray(buffer_x).flatten())
             
-            Y_buffer.append(buffer_y)
             All_orbits.append(Orbit)
             X = np.asarray(X_buffer_replaced)
             if use_previously_saved_models == True:
@@ -275,6 +274,7 @@ if __name__ == "__main__":
                 Y = Y.reshape(X.shape[0], Y.shape[1])
             else:
                 Y = np.asarray(Y[SET_PARAMS.buffer_size:]).reshape(X.shape[0],1)
+                Y_buffer.append(Y)
 
             if use_previously_saved_models == False:
                 cm = prediction_NN(X, Y, index, direction)
@@ -288,6 +288,12 @@ if __name__ == "__main__":
         X = np.asarray(X_buffer)
         Y = np.asarray(Y_buffer).reshape(X.shape[0], Y.shape[1])
 
-    if use_previously_saved_models == True:
+    if use_previously_saved_models == False:
+        index = "all samples"
+        cm = prediction_NN(X, Y, index, None)
+        print(cm, index)
+
+    else:
         cm = prediction_NN_determine_other_NN(X, Y)
+        print(cm)
     
