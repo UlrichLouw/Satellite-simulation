@@ -65,22 +65,18 @@ def visualize_data(D):
     for i in D.Orbit_Data:
         if i == "Current fault":
             pass
+        elif i == "Sun in view":
+            fig = plt.figure()
+            y = np.array((D.Orbit_Data[i]))
+            plt.plot(y)
+            plt.title(i)
+            plt.show() #plt.pause(0.001)
         else:
-            if i == "Sun in view":
-                fig = plt.figure()
-                y = np.array((D.Orbit_Data[i]))
-                plt.plot(y)
-                plt.title(i)
-                plt.show() #plt.pause(0.001)
-            else:
-                fig = plt.figure()
-                for j in D.Orbit_Data[i]:
-                    y = np.array((D.Orbit_Data[i][j]))
-                    plt.plot(y)
-
-                plt.legend(D.Orbit_Data[i])
-                plt.title(i)
-                plt.show() #plt.pause(1)
+            fig = plt.figure()
+            y = np.array((D.Orbit_Data[i]))
+            plt.plot(y)
+            plt.title(i)
+            plt.show() #plt.pause(1)
 
 # Function to calculate the angular momentum based on the derivative thereof
 def rungeKutta_h(self, x0, angular, x, h, N_control):

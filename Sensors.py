@@ -61,8 +61,12 @@ class Sensors:
         self.r_sat_EIC = np.array((r_sat))*1000 # convert r_sat to m
         self.v_sat_EIC = np.array((v_sat))*1000 # v_sat to m/s
 
-        self.r_sat_EIC += np.random.normal(0,np.linalg.norm(self.r_sat_EIC)*SET_PARAMS.Earth_noise,self.r_sat_EIC.shape)
-        self.v_sat_EIC += np.random.normal(0,np.linalg.norm(self.v_sat_EIC)*SET_PARAMS.Earth_noise,self.v_sat_EIC.shape)
+        self.r_sat_EIC[0] += np.random.normal(0,abs(self.r_sat_EIC[0]*SET_PARAMS.Earth_noise))
+        self.r_sat_EIC[1] += np.random.normal(0,abs(self.r_sat_EIC[1]*SET_PARAMS.Earth_noise))
+        self.r_sat_EIC[2] += np.random.normal(0,abs(self.r_sat_EIC[2]*SET_PARAMS.Earth_noise))
+        self.v_sat_EIC[0] += np.random.normal(0,abs(self.v_sat_EIC[0]*SET_PARAMS.Earth_noise))
+        self.v_sat_EIC[1] += np.random.normal(0,abs(self.v_sat_EIC[1]*SET_PARAMS.Earth_noise))
+        self.v_sat_EIC[2] += np.random.normal(0,abs(self.v_sat_EIC[2]*SET_PARAMS.Earth_noise))
     
         if any(error):       # If the earth sensor is faulty then it will provide the incorrect satellite vectors
             self.r_sat_EIC[np.where(error)[0]] += np.random.normal(0,np.linalg.norm(self.r_sat_EIC)*SET_PARAMS.Earth_sensor_fault_noise)
