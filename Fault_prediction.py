@@ -211,14 +211,14 @@ if __name__ == "__main__":
     All_orbits = []
     X_buffer = []
     Y_buffer = []
-    buffer = True
+    buffer_ = True
     binary_set = True
     use_previously_saved_models = False
     categorical_num = True
     
     for index in SET_PARAMS.Fault_names:
         for direction in SET_PARAMS.Fault_names[index]:
-            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models)
+            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer_, categorical_num, use_previously_saved_models)
             All_orbits.append(Orbit)
 
             if use_previously_saved_models == False:
