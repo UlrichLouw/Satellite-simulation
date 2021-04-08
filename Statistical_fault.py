@@ -11,14 +11,13 @@ def Binary_stat_fault(Data):
     Fault = False
     var = 0
 
-    corr = np.min(np.corrcoef(Data))
-    #var = np.var(Data)
+    corr = np.min(np.corrcoef(Data))    #Smallest correlation within dataset
+    var = np.var(Data)
 
     if corr < MIN_CORRELATION:
         Fault = True
-        print(Fault)
     """
-    elif var > MAX_VARIANCE:
+    elif any(var > MAX_VARIANCE):
         Fault = True
     """
     return Fault

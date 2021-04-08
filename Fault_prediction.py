@@ -10,7 +10,10 @@ from sklearn.metrics import confusion_matrix
 import collections
 from tensorflow.keras.models import model_from_json
 from Statistical_fault import Binary_stat_fault
+from Fault_utils import Dataset_order
 import os
+
+print(tf.config.list_physical_devices("GPU"))
 
 sc = StandardScaler()
 
@@ -102,15 +105,6 @@ testing_data_lists = {
     14: []
 }
 
-def Binary_split(classified_data):
-    for index in range(len(classified_data.index)):
-        if classified_data["Current fault"][index] == "None":
-            classified_data["Current fault"][index] = 0
-        else:
-            classified_data["Current fault"][index] = 1
-
-    return classified_data
-
 # A utility method to create a tf.data dataset from a Pandas Dataframe
 def df_to_dataset(dataframe, shuffle=True, batch_size=32):
   dataframe = dataframe.copy()
@@ -127,7 +121,7 @@ def prediction_NN(X, Y, index, direction):
     X_test = np.asarray(sc.transform(X_test)).astype(np.float32)
 
     y_train = np.asarray(y_train).astype(np.float32)
-    y_test = np.asarray(y_test).astype(np.int)
+    y_test = np.asarray(y_test).astype(np.int32)
 
     model = tf.keras.models.Sequential([
             tf.keras.layers.Dense(units=X.shape[1], activation = 'relu'),
@@ -162,7 +156,7 @@ def prediction_NN_determine_other_NN(X, Y):
     X_test = np.asarray(sc.transform(X_test)).astype(np.float32)
 
     y_train = np.asarray(y_train).astype(np.float32)
-    y_test = np.asarray(y_test).astype(np.int)
+    y_test = np.asarray(y_test).astype(np.int32)
 
     model = tf.keras.models.Sequential([
             tf.keras.layers.Dense(units=X.shape[1], activation = 'relu'),
@@ -174,7 +168,7 @@ def prediction_NN_determine_other_NN(X, Y):
 
     model.compile(optimizer='adam',
             loss='categorical_crossentropy',
-            metrics=['accuracy'])
+            metrics=['Precision'])
 
     batch_size = 32 # A small batch sized is used for demonstration purposes
 
@@ -199,7 +193,7 @@ def prediction_NN_determine_other_NN(X, Y):
 
     for i in range(y_pred.shape[0]):
         model_data_lists[np.argmax(y_pred[i])+1].append(X_test[i,:])
-        testing_data_lists[np.argmax(y_pred[i])+1].append(0 if y_test[i][0] == 1 else 1)
+        testing_data_lists[np.argmax(y_pred[i])+1].append(1 if y_test[i][0] == 1 else 0)
         ind.append(np.argmax(y_pred[i])+1)
 
     for i in range(1,y_pred.shape[1]+1):
@@ -207,74 +201,24 @@ def prediction_NN_determine_other_NN(X, Y):
         if res:
             y_predicted = model_names[i].predict(np.asarray(model_data_lists[i]).astype(np.float32))
             cm = confusion_matrix(np.asarray(testing_data_lists[i]), np.asarray(y_predicted).round())
+            temp = np.asarray(y_predicted).round()
             print(cm, i)
 
     return cm
 
-def Dataset_order(index, direction, binary_set, buffer, categorical_num):
-    X_buffer_replaced = []
-    if SET_PARAMS.Save_excel_file == True:
-        Data = pd.read_excel(xls, str(index) + str(direction))
-
-    else:
-        pickle_file = SET_PARAMS.pickle_filename
-        Data = pd.read_pickle(pickle_file)
-    
-    if binary_set == True and use_previously_saved_models == False:
-        Orbit = Data.drop(columns = ['Current fault', 'Current fault numeric'])
-    elif categorical_num == True:
-        Orbit = Data.drop(columns = ['Current fault', 'Current fault binary'])
-    else:
-        Orbit = Binary_split(Data)
-
-    Orbit.drop(columns = ['Sun in view'], inplace = True)
-    X = Orbit.iloc[:,0:-1].values
-    X_correlation_sun_earth_magnetometer = Orbit.iloc[:,0:9].values
-    Y = Orbit.iloc[:,-1].values
-
-    buffer_x = collections.deque(maxlen = SET_PARAMS.buffer_size)
-    buffer_correlation_sun_earth_magnetometer = collections.deque(maxlen = SET_PARAMS.buffer_size)
-    y = Y[SET_PARAMS.buffer_size - 1:]
-    buffer_y = []
-
-
-    for i in range(SET_PARAMS.buffer_size - 1):
-        buffer_x.append(X[i,:])
-        buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
-
-    for i in range(SET_PARAMS.buffer_size, X.shape[0]):
-        buffer_x.append(X[i,:])
-        buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
-        if use_previously_saved_models == True:
-            buffer_y.append(np.fromstring(y[i-SET_PARAMS.buffer_size][1:-1], dtype = float, sep=','))
-        Binary_stat_fault(buffer_correlation_sun_earth_magnetometer)
-        X_buffer.append(np.asarray(buffer_x).flatten())
-        X_buffer_replaced.append(np.asarray(buffer_x).flatten())
-    
-    All_orbits.append(Orbit)
-    X = np.asarray(X_buffer_replaced)
-    if use_previously_saved_models == True:
-        Y = np.asarray(buffer_y)
-        Y = Y.reshape(X.shape[0], Y.shape[1])
-    else:
-        Y = np.asarray(Y[SET_PARAMS.buffer_size:]).reshape(X.shape[0],1)
-        Y_buffer.append(Y)
-
-    return Y, Y_buffer, X, X_buffer, Orbit
-
 if __name__ == "__main__":
     confusion_matrices = []
     All_orbits = []
-    buffer = True
-    binary_set = True
     X_buffer = []
     Y_buffer = []
-    use_previously_saved_models = True
+    buffer = True
+    binary_set = True
+    use_previously_saved_models = False
     categorical_num = True
     
     for index in SET_PARAMS.Fault_names:
         for direction in SET_PARAMS.Fault_names[index]:
-            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num)
+            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models)
             All_orbits.append(Orbit)
 
             if use_previously_saved_models == False:

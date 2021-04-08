@@ -5,5 +5,5 @@ csv
 pandas
 sgp4
 skyfield
-tensorflow
+tensorflow==2.2.0
 sklearn
