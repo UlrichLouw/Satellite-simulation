@@ -17,7 +17,7 @@ def Binary_split(classified_data):
 
     return classified_data
 
-def Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models = False):
+def Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models = False, columns_compare = None, columns_compare_to = None):
     X_buffer_replaced = []
     if SET_PARAMS.Save_excel_file == True:
         Data = pd.read_excel(xls, str(index) + str(direction))
@@ -33,37 +33,46 @@ def Dataset_order(index, direction, binary_set, buffer, categorical_num, use_pre
     else:
         Orbit = Binary_split(Data)
 
-    Orbit.drop(columns = ['Sun in view'], inplace = True)
-    X = Orbit.iloc[:,0:-1].values
-    X_correlation_sun_earth_magnetometer = Orbit.iloc[:,0:9].values
-    Y = Orbit.iloc[:,-1].values
+    if columns_compare != None:
+        columns_to_keep = columns_compare + columns_compare_to
+        for i in columns_to_keep:
+            temp = Orbit[i]
+        
+        Orbit = Orbit[columns_to_keep]
+        X = Orbit[columns_compare]
+        Y = Orbit[columns_compare_to]
+    else:
+        Orbit.drop(columns = ['Sun in view'], inplace = True)
+        X = Orbit.iloc[:,0:-1].values
+        X_correlation_sun_earth_magnetometer = Orbit.iloc[:,0:9].values
+        Y = Orbit.iloc[:,-1].values
 
     buffer_x = collections.deque(maxlen = SET_PARAMS.buffer_size)
     buffer_correlation_sun_earth_magnetometer = collections.deque(maxlen = SET_PARAMS.buffer_size)
     y = Y[SET_PARAMS.buffer_size - 1:]
     buffer_y = []
 
+    if buffer == True:
+        for i in range(SET_PARAMS.buffer_size - 1):
+            buffer_x.append(X[i,:])
+            buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
 
-    for i in range(SET_PARAMS.buffer_size - 1):
-        buffer_x.append(X[i,:])
-        buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
+        for i in range(SET_PARAMS.buffer_size, X.shape[0]):
+            buffer_x.append(X[i,:])
+            buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
+            if use_previously_saved_models == True:
+                buffer_y.append(np.fromstring(y[i-SET_PARAMS.buffer_size][1:-1], dtype = float, sep=','))
+            #Binary_stat_fault(buffer_correlation_sun_earth_magnetometer)
+            X_buffer.append(np.asarray(buffer_x).flatten())
+            X_buffer_replaced.append(np.asarray(buffer_x).flatten())
 
-    for i in range(SET_PARAMS.buffer_size, X.shape[0]):
-        buffer_x.append(X[i,:])
-        buffer_correlation_sun_earth_magnetometer.append(X_correlation_sun_earth_magnetometer[i,:])
-        if use_previously_saved_models == True:
-            buffer_y.append(np.fromstring(y[i-SET_PARAMS.buffer_size][1:-1], dtype = float, sep=','))
-        #Binary_stat_fault(buffer_correlation_sun_earth_magnetometer)
-        X_buffer.append(np.asarray(buffer_x).flatten())
-        X_buffer_replaced.append(np.asarray(buffer_x).flatten())
-
-    X = np.asarray(X_buffer_replaced)
-    if use_previously_saved_models == True:
-        Y = np.asarray(buffer_y)
-        Y = Y.reshape(X.shape[0], Y.shape[1])
-        Y_buffer.append(Y)
-    else:
-        Y = np.asarray(Y[SET_PARAMS.buffer_size:]).reshape(X.shape[0],1)
-        Y_buffer.append(Y)
+            X = np.asarray(X_buffer_replaced)
+            if use_previously_saved_models == True:
+                Y = np.asarray(buffer_y)
+                Y = Y.reshape(X.shape[0], Y.shape[1])
+                Y_buffer.append(Y)
+            else:
+                Y = np.asarray(Y[SET_PARAMS.buffer_size:]).reshape(X.shape[0],1)
+                Y_buffer.append(Y)
 
     return Y, Y_buffer, X, X_buffer, Orbit
