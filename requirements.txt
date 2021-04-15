@@ -8,3 +8,5 @@ skyfield
 tensorflow==2.2.0
 sklearn
 pyrcca
+seaborn
+

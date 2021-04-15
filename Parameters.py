@@ -122,7 +122,7 @@ class SET_PARAMS:
     Display parameters
     """
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = True # if display is desired or not
+    Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
     Number_of_orbits = 2
     """

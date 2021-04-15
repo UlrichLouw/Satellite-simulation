@@ -45,7 +45,7 @@ class Sensors:
             S_EIC = np.zeros((3,1))
         else:
             self.in_sun_view = True
-        return S_EIC, self.in_sun_view     #in m
+        return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
 
     def magnetometer(self, t, error = [False, False, False]):
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
@@ -54,7 +54,7 @@ class Sensors:
         if any(error):
             B[np.where(error)[0]] += np.random.normal(0,SET_PARAMS.Magnetometer_fault_noise)
 
-        return B
+        return B/np.linalg.norm(B)
 
     def satellite_vector(self, t, error=[False,False, False]):
         e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t/86400)
@@ -77,4 +77,4 @@ class Sensors:
         self.A_EIC_to_ORC = self.orbit.EIC_to_ORC(self.r_sat_EIC, self.v_sat_EIC)
         self.r_sat = np.matmul(self.A_EIC_to_ORC, self.r_sat_EIC)
         self.v_sat = np.matmul(self.A_EIC_to_ORC, self.v_sat_EIC)
-        return self.r_sat, self.v_sat, self.A_EIC_to_ORC, r_sat
+        return self.r_sat/np.linalg.norm(self.r_sat), self.v_sat/np.linalg.norm(self.v_sat), self.A_EIC_to_ORC, r_sat

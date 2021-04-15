@@ -15,15 +15,6 @@ binary_set = True
 use_previously_saved_models = False
 categorical_num = True
 
-# Define two latent variables (number of samples x 1)
-latvar1 = np.random.randn(nSamples,)
-latvar2 = np.random.randn(nSamples,)
-
-# Define independent components for each dataset (number of observations x dataset dimensions)
-indep1 = np.random.randn(nSamples, 4)
-indep2 = np.random.randn(nSamples, 5)
-
-
 if __name__ == "__main__":
     # Create two datasets, with each dimension composed as a sum of 75% one of the latent variables and 25% independent component
     for index in SET_PARAMS.Fault_names:
