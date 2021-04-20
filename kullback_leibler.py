@@ -22,19 +22,18 @@ def kl_divergence(p,q):
 
 if __name__ == "__main__":
     # Create two datasets, with each dimension composed as a sum of 75% one of the latent variables and 25% independent component
-    for index in SET_PARAMS.Fault_names:
-        for direction in SET_PARAMS.Fault_names[index]:
-            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models, 
-                                                            columns_compare = ["Earth x"], 
-                                                            columns_compare_to = ["Angular momentum of wheels x"])
-            All_orbits.append(Orbit)
+    x = np.arange(-10, 10 , 0.001)
+    for index in range(SET_PARAMS.Number_of_multiple_orbits):
+        Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models, 
+                                                        columns_compare = ["Earth x"], 
+                                                        columns_compare_to = ["Angular momentum of wheels x"])
+        All_orbits.append(Orbit)
 
-            if use_previously_saved_models == False:
-                x = np.arange(-10, 10 , 0.001)
-                p = norm.pdf(x, np.linalg.norm(X), np.std(X))
-                q = norm.pdf(x, np.linalg.norm(Y), np.std(Y))
+        if use_previously_saved_models == False:
+            p = norm.pdf(x, np.linalg.norm(X), np.std(X))
+            q = norm.pdf(x, np.linalg.norm(Y), np.std(Y))
 
-                plt.plot('KL(P||Q) = %1.3f' %kl_divergence(p,q))
-                plt.plot(x,p)
-                plt.plot(x,q, c = 'red')
-                plt.show()
+            plt.plot('KL(P||Q) = %1.3f' %kl_divergence(p,q))
+            plt.plot(x,p)
+            plt.plot(x,q, c = 'red')
+            plt.show()
