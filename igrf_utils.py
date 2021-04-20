@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 30 21:55:38 2020
-
 @author: Ciaran Beggan (British Geological Survey)
  
 Based on code from : chaosmagpy, Clemens Kloss (DTU Space)
@@ -11,7 +10,6 @@ Based on code from : chaosmagpy, Clemens Kloss (DTU Space)
 Functions for computing main field, the non-linear coefficients of the field,
     loading in coefficients files, format checking and coordinate rotation from
     geodetic to geocentric frame
-
 """
 
 import os
@@ -47,7 +45,6 @@ def check_float(s):
 def load_shcfile(filepath, leap_year=None):
     """
     Load shc-file and return coefficient arrays.
-
     Parameters
     ----------
     filepath : str
@@ -55,7 +52,6 @@ def load_shcfile(filepath, leap_year=None):
     leap_year : {True, False}, optional
         Take leap year in time conversion into account (default). Otherwise,
         use conversion factor of 365.25 days per year.
-
     Returns
     -------
     time : ndarray, shape (N,)
@@ -71,7 +67,6 @@ def load_shcfile(filepath, leap_year=None):
         ``'order'`` piecewise polynomial order and ``'step'`` number of
         snapshots until next break point. Extract break points of the
         piecewise polynomial with ``breaks = time[::step]``.
-
     """
     leap_year = True if leap_year is None else leap_year
 
@@ -145,14 +140,12 @@ def gg_to_geo(h, gdcolat):
     """
     Compute geocentric colatitude and radius from geodetic colatitude and
     height.
-
     Parameters
     ----------
     h : ndarray, shape (...)
         Altitude in kilometers.
     gdcolat : ndarray, shape (...)
         Geodetic colatitude
-
     Returns
     -------
     radius : ndarray, shape (...)
@@ -164,7 +157,6 @@ def gg_to_geo(h, gdcolat):
         rotate B_X to gd_lat 
     cd :  ndarray shape (...) 
         rotate B_Z to gd_lat 
-
     References
     ----------
     Equations (51)-(53) from "The main field" (chapter 4) by Langel, R. A. in:
@@ -172,7 +164,6 @@ def gg_to_geo(h, gdcolat):
     
     Malin, S.R.C. and Barraclough, D.R., 1981. An algorithm for synthesizing 
     the geomagnetic field. Computers & Geosciences, 7(4), pp.401-405.
-
     """
     # Use WGS-84 ellipsoid parameters
 
@@ -204,35 +195,29 @@ def geo_to_gg(radius, theta):
     """
     Compute geodetic colatitude and vertical height above the ellipsoid from
     geocentric radius and colatitude.
-
     Parameters
     ----------
     radius : ndarray, shape (...)
         Geocentric radius in kilometers.
     theta : ndarray, shape (...)
         Geocentric colatitude in degrees.
-
     Returns
     -------
     height : ndarray, shape (...)
         Altitude in kilometers.
     beta : ndarray, shape (...)
         Geodetic colatitude
-
     Notes
     -----
     Round-off errors might lead to a failure of the algorithm especially but
     not exclusively for points close to the geographic poles. Corresponding
     geodetic coordinates are returned as NaN.
-
     References
     ----------
     Function uses Heikkinen's algorithm taken from:
-
     Zhu, J., "Conversion of Earth-centered Earth-fixed coordinates to geodetic
     coordinates", IEEE Transactions on Aerospace and Electronic Systems}, 1994,
     vol. 30, num. 3, pp. 957-961
-
     """
     
     # Use WGS-84 ellipsoid parameters
@@ -287,10 +272,8 @@ def synth_values(coeffs, radius, theta, phi, \
     Computes radial, colatitude and azimuthal field components from the
     magnetic potential field in terms of spherical harmonic coefficients.
     A reduced version of the DTU synth_values chaosmagpy code
-
     Parameters
     ----------
-
     coeffs : ndarray, shape (..., N)
         Coefficients of the spherical harmonic expansion. The last dimension is
         equal to the number of coefficients, `N` at the grid points.
@@ -316,12 +299,10 @@ def synth_values(coeffs, radius, theta, phi, \
         ``theta`` and ``phi`` must have one dimension less than the output grid
         since the grid will be created as their outer product (defaults to
         ``False``).
-
     Returns
     -------
     B_radius, B_theta, B_phi : ndarray, shape (...)
         Radial, colatitude and azimuthal field components.
-
     Notes
     -----
     The function can work with different grid shapes, but the inputs have to
@@ -329,66 +310,47 @@ def synth_values(coeffs, radius, theta, phi, \
     <https://docs.scipy.org/doc/numpy-1.15.0/user/basics.broadcasting.html>`_
     (``grid=False``, default). This also applies to the dimension of the
     coefficients ``coeffs`` excluding the last dimension.
-
     The optional parameter ``grid`` is for convenience. If set to ``True``,
     a singleton dimension is appended (prepended) to ``theta`` (``phi``)
     for broadcasting to a regular grid. The other inputs ``radius`` and
     ``coeffs`` must then be broadcastable as before but now with the resulting
     regular grid.
-
     Examples
     --------
     The most straight forward computation uses a fully specified grid. For
     example, compute the magnetic field at :math:`N=50` grid points on the
     surface.
-
     .. code-block:: python
-
       import igrf_utils as iut
       import numpy as np
-
       N = 13
       coeffs = np.ones((3,))  # degree 1 coefficients for all points
       radius = 6371.2 * np.ones((N,))  # radius of 50 points in km
       phi = np.linspace(-180., 180., num=N)  # azimuth of 50 points in deg.
       theta = np.linspace(0., 180., num=N)  # colatitude of 50 points in deg.
-
       B = iut.synth_values(coeffs, radius, theta, phi)
       print([B[num].shape for num in range(3)])  # (N,) shaped output
-
     Instead of `N` points, compute the field on a regular
     :math:`N\\times N`-grid in azimuth and colatitude (slow).
-
     .. code-block:: python
-
       radius_grid = 6371.2 * np.ones((N, N))
       phi_grid, theta_grid = np.meshgrid(phi, theta)  # regular NxN grid
-
       B = iut.synth_values(coeffs, radius_grid, theta_grid, phi_grid)
       print([B[num].shape for num in range(3)])  # NxN output
-
     But this is slow since some computations on the grid are executed several
     times. The preferred method is to use NumPy's broadcasting rules (fast).
-
     .. code-block:: python
-
       radius_grid = 6371.2  # float, () or (1,)-shaped array broadcasted to NxN
       phi_grid = phi[None, ...]  # prepend singleton: 1xN
       theta_grid = theta[..., None]  # append singleton: Nx1
-
       B = iut.synth_values(coeffs, radius_grid, theta_grid, phi_grid)
       print([B[num].shape for num in range(3)])  # NxN output
-
     For convenience, you can do the same by using ``grid=True`` option.
-
     .. code-block:: python
-
       B = iut.synth_values(coeffs, radius_grid, theta, phi, grid=True)
       print([B[num].shape for num in range(3)])  # NxN output
-
     Remember that ``grid=False`` (or left out completely) will result in
     (N,)-shaped outputs as in the first example.
-
     """
 
     # ensure ndarray inputs
@@ -502,7 +464,6 @@ def legendre_poly(nmax, theta):
     """
     Returns associated Legendre polynomials `P(n,m)` (Schmidt quasi-normalized)
     and the derivative :math:`dP(n,m)/d\\theta` evaluated at :math:`\\theta`.
-
     Parameters
     ----------
     nmax : int, positive
@@ -510,14 +471,12 @@ def legendre_poly(nmax, theta):
     theta : ndarray, shape (...)
         Colatitude in degrees :math:`[0^\\circ, 180^\\circ]`
         of arbitrary shape.
-
     Returns
     -------
     Pnm : ndarray, shape (n, m, ...)
           Evaluated values and derivatives, grid shape is appended as trailing
           dimensions. `P(n,m)` := ``Pnm[n, m, ...]`` and `dP(n,m)` :=
           ``Pnm[m, n+1, ...]``
-
     """
 
     costh = np.cos(radians(theta))
@@ -579,8 +538,6 @@ def xyz2dhif(x, y, z):
     I: inclination (degrees) : float
     F: total intensity (nT) : float
     
-
-
     """
     hsq = x*x + y*y
     hoz  = np.sqrt(hsq)
@@ -614,8 +571,6 @@ def xyz2dhif_sv(x, y, z, xdot, ydot, zdot):
     Idot: rate of change of inclination (degrees/year)
     Fdot: rate of change of total intensity (nT/year)
     
-
-
     """
     h2  = x*x + y*y
     h   = np.sqrt(h2)

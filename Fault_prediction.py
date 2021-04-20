@@ -22,20 +22,19 @@ xls = pd.ExcelFile(excel_file)
 RANDOM_SEED = 0
 
 Fault_names_to_num = {
-    "NoneNone": 1,
-    "Sun sensorx": 2,
-    "Sun sensory": 3, 
-    "Sun sensorz": 4,
-    "Magnetometerx": 5, 
-    "Magnetometery": 6, 
-    "Magnetometerz": 7,
-    "Earth sensorx": 8, 
-    "Earth sensory": 9, 
-    "Earth sensorz": 10,
-    "Reaction wheelx": 11, 
-    "Reaction wheely": 12, 
-    "Reaction wheelz": 13,
-    "Controlall": 14
+    "None": 1,
+    "Electronics": 2,
+    "Overhead": 3, 
+    "Catastrophic_RW": 4,
+    "Catastrophic_sun": 5, 
+    "Errenous": 6, 
+    "Inverted_polarities": 7,
+    "Interference": 8, 
+    "Stop": 9, 
+    "Closed_shutter": 10,
+    "Increasing": 11, 
+    "Decrease": 12, 
+    "Oscillates": 13
 }
 
 loaded_model_1 = None
@@ -216,14 +215,13 @@ if __name__ == "__main__":
     use_previously_saved_models = False
     categorical_num = True
     
-    for index in SET_PARAMS.Fault_names:
-        for direction in SET_PARAMS.Fault_names[index]:
-            Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, direction, binary_set, buffer, categorical_num, use_previously_saved_models)
-            All_orbits.append(Orbit)
+    for index in range(SET_PARAMS.Number_of_multiple_orbits):
+        Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, binary_set, buffer, categorical_num, use_previously_saved_models)
+        All_orbits.append(Orbit)
 
-            if use_previously_saved_models == False:
-                cm = prediction_NN(X, Y, index, direction)
-                print(cm, str(index) + str(direction))      
+        if use_previously_saved_models == False:
+            cm = prediction_NN(X, Y, index)
+            print(cm, str(index))      
     
     if buffer == False:
         All_orbits = pd.concat(All_orbits)

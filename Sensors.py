@@ -18,7 +18,7 @@ class Sensors:
         self.coordinates_to_earth = EarthSatellite(SET_PARAMS.s_list, SET_PARAMS.t_list)
         self.first = 0
 
-    def sun(self, t, error = [False, False, False]):
+    def sun(self, t):
         T_jc = (SET_PARAMS.J_t + SET_PARAMS.fr + t * 3.168808781403e-8 - 2452545)/36525
         M_o = 357.527723300 + 35999.050340*T_jc     #in degrees
         lambda_Mo = 280.460618400 + 36000.770053610*T_jc        #degrees
@@ -29,10 +29,6 @@ class Sensors:
         rsun = rsun*(149597871)*1000
         norm_rsun = np.linalg.norm(rsun)
         rsun += np.random.normal(0,SET_PARAMS.Sun_noise*norm_rsun,rsun.shape)
-
-        if any(error):
-            rsun[np.where(error)[0]] += np.random.normal(0,SET_PARAMS.Sun_sensor_fault_noise*norm_rsun)          
-
         norm_rsun = np.linalg.norm(rsun)
         S_EIC = rsun - np.reshape(self.r_sat_EIC, (3,1))
         norm_S_EIC = np.linalg.norm(S_EIC)
@@ -51,8 +47,6 @@ class Sensors:
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
         B = self.earth.scalar_potential_function(latitude, longitude, altitude)
         B += np.random.normal(0,np.linalg.norm(B)*SET_PARAMS.Magnetometer_noise,B.shape)
-        if any(error):
-            B[np.where(error)[0]] += np.random.normal(0,SET_PARAMS.Magnetometer_fault_noise)
 
         return B/np.linalg.norm(B)
 
@@ -68,10 +62,6 @@ class Sensors:
         self.v_sat_EIC[1] += np.random.normal(0,abs(self.v_sat_EIC[1]*SET_PARAMS.Earth_noise))
         self.v_sat_EIC[2] += np.random.normal(0,abs(self.v_sat_EIC[2]*SET_PARAMS.Earth_noise))
     
-        if any(error):       # If the earth sensor is faulty then it will provide the incorrect satellite vectors
-            self.r_sat_EIC[np.where(error)[0]] += np.random.normal(0,np.linalg.norm(self.r_sat_EIC)*SET_PARAMS.Earth_sensor_fault_noise)
-            self.v_sat_EIC[np.where(error)[0]] += np.random.normal(0,np.linalg.norm(self.v_sat_EIC)*SET_PARAMS.Earth_sensor_fault_noise)
-        
         self.A_EFC_to_EIC = self.orbit.EFC_to_EIC(t)
         self.r_sat_EFC = np.matmul(np.linalg.inv(self.A_EFC_to_EIC),self.r_sat_EIC/1000)
         self.A_EIC_to_ORC = self.orbit.EIC_to_ORC(self.r_sat_EIC, self.v_sat_EIC)

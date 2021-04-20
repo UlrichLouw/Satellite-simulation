@@ -16,15 +16,11 @@ class Control:
         self.mode = SET_PARAMS.Mode
 
     def control(self, w, q, Inertia, B, error = False):
-        if self.mode == "Nominal":   #Normal operation
+        if self.mode == "Nominal":   # Normal operation
             N_magnet = np.zeros((3,1))
+            N_wheel = self.control_wheel(w, q, Inertia)
 
-            if error:  #control_wheels do not respond
-                N_wheel = np.zeros((3,1))
-            else:
-                N_wheel = self.control_wheel(w, q, Inertia)
-
-        elif mode == "Safe":    #Detumbling mode
+        elif self.mode == "Safe":    # Detumbling mode
             N_magnet = self.magnetic_torquers(B, w)
             N_wheel = np.zeros((3,1))
     
