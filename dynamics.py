@@ -9,21 +9,7 @@ import time
 import csv
 import pandas as pd
 
-Fault_names_to_num = {
-    "None": 1,
-    "Electronics": 2,
-    "Overhead": 3, 
-    "Catastrophic_RW": 4,
-    "Catastrophic_sun": 5, 
-    "Errenous": 6, 
-    "Inverted_polarities": 7,
-    "Interference": 8, 
-    "Stop": 9, 
-    "Closed_shutter": 10,
-    "Increasing": 11, 
-    "Decrease": 12, 
-    "Oscillates": 13
-}
+Fault_names_to_num = SET_PARAMS.Fault_names
 # The matplotlib cannot display plots while visual simulation runs.
 # Consequently the Display and visualize parameters in Parameters 
 # must be set as desired
@@ -140,7 +126,7 @@ class Dynamics:
             "Current fault binary": []
         }
 
-        self.zeros = np.zeros((14,), dtype = int)
+        self.zeros = np.zeros((17,), dtype = int)
 
         self.fault = "None"                      # Current fault of the system
         # The Orbit_Data dictionary is used to store all the measurements for each timestep (Ts)
@@ -255,13 +241,13 @@ class Dynamics:
             self.S_EIC = self.Sensors_general_fault.High_noise(self.S_EIC)
             self.S_EIC = self.Sun_sensor_fault.Catastrophic(self.S_EIC)
             self.S_EIC = self.Sun_sensor_fault.Erroneous(self.S_EIC)
-            self.S_EIC = self.Common_data_transmission_fault.bit_flip(self.S_EIC)
-            self.S_EIC = self.Common_data_transmission_fault.sign_flip(self.S_EIC)
+            self.S_EIC = self.Common_data_transmission_fault.Bit_flip(self.S_EIC)
+            self.S_EIC = self.Common_data_transmission_fault.Sign_flip(self.S_EIC)
             self.S_EIC = self.Common_data_transmission_fault.Insertion(self.S_EIC)
             self.Beta = self.Magnetometer_fault.Stop(self.Beta)
             self.Beta = self.Magnetometer_fault.Interference(self.Beta)
-            self.Beta = self.Common_data_transmission_fault.bit_flip(self.Beta)
-            self.Beta = self.Common_data_transmission_fault.sign_flip(self.Beta)
+            self.Beta = self.Common_data_transmission_fault.Bit_flip(self.Beta)
+            self.Beta = self.Common_data_transmission_fault.Sign_flip(self.Beta)
             self.Beta = self.Common_data_transmission_fault.Insertion(self.Beta)
         
         self.update()

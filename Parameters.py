@@ -126,7 +126,7 @@ class SET_PARAMS:
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
     Number_of_orbits = 10
-    Number_of_multiple_orbits = 10
+    Number_of_multiple_orbits = 100
     """
     Visualize measurements
     """
@@ -161,7 +161,7 @@ class SET_PARAMS:
     Fault_names = {
     "None": 1,
     "Electronics": 2,
-    "Overhead": 3, 
+    "Overheated": 3, 
     "Catastrophic_RW": 4,
     "Catastrophic_sun": 5, 
     "Errenous": 6, 
@@ -171,7 +171,11 @@ class SET_PARAMS:
     "Closed_shutter": 10,
     "Increasing": 11, 
     "Decrease": 12, 
-    "Oscillates": 13
+    "Oscillates": 13,
+    "Bit_flip": 14,
+    "Sign_flip": 15,
+    "Insertion": 16,
+    "High_noise": 17,
     }
 
     Fault_simulation_mode = 1 # Continued failure, a mistake that does not go back to normal
@@ -296,7 +300,7 @@ class Magnetometers(Fault_parameters):
         return np.zeros(magnetometer.shape) if self.failure == "Stop" else magnetometer
 
     def Interference(self, magnetometers):
-        return magnetometers*random_size(min_inteference, max_interference) if self.failure == "Interference" else magnetometer
+        return magnetometers*random_size(min_inteference, max_interference) if self.failure == "Interference" else magnetometers
 
 class Earth_Sensor(Fault_parameters):
     def __init__(self):
@@ -359,7 +363,7 @@ class Common_data_transmission(Fault_parameters):
             2: "Insertion"
         }
 
-    def bit_flip(self, value_to_change):
+    def Bit_flip(self, value_to_change):
         return random_bit_flip(value_to_change) if self.failure == "Bit_flip" else value_to_change
 
     def Sign_flip(self, value_to_change):
