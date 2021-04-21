@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import pandas as pd
+from threading import Thread
+import concurrent.futures
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 # The matplotlib cannot display plots while visual simulation runs.
@@ -277,30 +279,42 @@ class Dynamics:
         self.Orbit_Data["Current fault numeric"].append(temp)
         self.Orbit_Data["Current fault binary"].append(0 if self.fault == "NoneNone" else 1)
 
+Data = []
+orbit_descriptions = []
+
+def loop(index):
+    print("Number of multiple orbits", index)  
+    if SET_PARAMS.Display:
+        satellite = view.initializeCube(SET_PARAMS.Dimensions)
+        pv = view.ProjectionViewer(1920, 1080, satellite)
+
+    for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+        w, q, A, r, sun_in_view = D.rotation()
+        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+            pv.run(w, q, A, r, sun_in_view)
+
+    if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
+        visualize_data(D)
+
+    Data.append(D.Orbit_Data)
+    orbit_descriptions.append(str(index))
+
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
-    Data = []
-    orbit_descriptions = []
-    for index in range(SET_PARAMS.Number_of_multiple_orbits):  
-        if SET_PARAMS.Display:
-            satellite = view.initializeCube(SET_PARAMS.Dimensions)
-            pv = view.ProjectionViewer(1920, 1080, satellite)
+    D = Dynamics()
+    sense = Sensors()
+    threads = []
 
-        D = Dynamics()
-        sense = Sensors()   
-        for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
-            w, q, A, r, sun_in_view = D.rotation()
-            if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
-                pv.run(w, q, A, r, sun_in_view)
+    for i in range(SET_PARAMS.Number_of_multiple_orbits):
+        threads.append(i)
 
-        if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
-            visualize_data(D)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = executor.map(loop, threads)
 
-        Data.append(D.Orbit_Data)
-        orbit_descriptions.append(str(index))
-
+    
     if SET_PARAMS.Save_excel_file:
         save_as_excel(Data, orbit_descriptions)
     else:
         save_as_pickle(Data)
+    
 

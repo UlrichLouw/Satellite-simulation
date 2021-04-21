@@ -149,7 +149,7 @@ class SET_PARAMS:
     buffer_size = 20
 
     # File names for the storage of the data attained during the simulation
-    excel_filename = "Data_files/Faults" + data_mode + ".xls"
+    excel_filename = "Data_files/Faults" + data_mode + ".xlsx"
     pickle_filename = "Data_files/Faults" + data_mode + ".pkl"
     """
     Mode of operation

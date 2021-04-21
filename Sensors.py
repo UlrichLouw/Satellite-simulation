@@ -39,9 +39,10 @@ class Sensors:
         if (theta_e > theta_s) and (theta < (theta_e-theta_s)):
             self.in_sun_view = False
             S_EIC = np.zeros((3,1))
+            return S_EIC, self.in_sun_view 
         else:
             self.in_sun_view = True
-        return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
+            return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
 
     def magnetometer(self, t, error = [False, False, False]):
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
