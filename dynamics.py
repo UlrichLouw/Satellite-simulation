@@ -10,6 +10,7 @@ import csv
 import pandas as pd
 from threading import Thread
 import concurrent.futures
+import multiprocessing
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 # The matplotlib cannot display plots while visual simulation runs.
@@ -279,10 +280,7 @@ class Dynamics:
         self.Orbit_Data["Current fault numeric"].append(temp)
         self.Orbit_Data["Current fault binary"].append(0 if self.fault == "NoneNone" else 1)
 
-Data = []
-orbit_descriptions = []
-
-def loop(index):
+def loop(index, Data, orbit_descriptions):
     print("Number of multiple orbits", index)  
     if SET_PARAMS.Display:
         satellite = view.initializeCube(SET_PARAMS.Dimensions)
@@ -296,25 +294,37 @@ def loop(index):
     if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
         visualize_data(D)
 
-    Data.append(D.Orbit_Data)
-    orbit_descriptions.append(str(index))
+    Data[index] = D.Orbit_Data
+    orbit_descriptions[index] =str(index)
 
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
     D = Dynamics()
     sense = Sensors()
     threads = []
-
+    """
     for i in range(SET_PARAMS.Number_of_multiple_orbits):
         threads.append(i)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         results = executor.map(loop, threads)
+    """
+    manager = multiprocessing.Manager()
+    Data = manager.dict()
+    orbit_descriptions = manager.dict()
 
+    for i in range(SET_PARAMS.Number_of_multiple_orbits):
+        t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
+        threads.append(t)
+        t.start()
     
+    for process in threads:
+        process.join()
+
+
     if SET_PARAMS.Save_excel_file:
-        save_as_excel(Data, orbit_descriptions)
+        save_as_excel(Data.values(), orbit_descriptions.values())
     else:
         save_as_pickle(Data)
-    
+
 
