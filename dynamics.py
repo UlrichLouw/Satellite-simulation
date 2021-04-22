@@ -44,10 +44,21 @@ def save_as_excel(Data, sheetnames):
             df.to_excel(writer, sheet_name = sheetname, index = False)
             i += 1
 
+# Save as csv file
+def save_as_csv(Data, sheetnames):
+    i = 0
+    for data in Data:
+        df = pd.DataFrame(data, columns = data.keys())
+        df.to_csv(SET_PARAMS.csv_filename + str(i) + ".csv")
+        i += 1
+
 # Function to save a pickle file of simulation data
 def save_as_pickle(Data):
-    Data_frame = pd.DataFrame(Data, columns = Data.keys())
-    Data_frame.to_pickle(SET_PARAMS.pickle_filename)
+    i = 0
+    for data in Data:
+        df = pd.DataFrame(data, columns = data.keys())
+        df.to_pickle(SET_PARAMS.pickle_filename + str(i) + ".pkl")
+        i += 1
 
 # Function to visualize data as graphs
 def visualize_data(D):
@@ -87,7 +98,10 @@ def rungeKutta_h(self, x0, angular, x, h, N_control):
 
 class Dynamics:
     # Initiate initial parameters for the beginning of each orbit set (fault)
-    def __init__(self):
+    def __init__(self, seed):
+        self.seed = seed
+        self.np_random = np.random
+        self.np_random.seed(seed)                            # Ensures that every fault parameters are implemented with different random seeds
         self.dist = Disturbances()                  # Disturbances of the simulation
         self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
         self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
@@ -103,18 +117,6 @@ class Dynamics:
         self.angular_momentum = SET_PARAMS.initial_angular_wheels # Angular momentum of satellite wheels
         self.faster_than_control = SET_PARAMS.faster_than_control   # If it is required that satellite must move faster around the earth than Ts
         self.control = Controller.Control()         # Controller.py is used for control of satellite    
-        """
-        All the current fault classes
-        """
-        self.Reaction_wheel_fault = Parameters.Reaction_wheels()
-        self.Earth_sensor_fault = Parameters.Earth_Sensor()     
-        self.Sun_sensor_fault = Parameters.Sun_sensor()
-        self.Magnetometer_fault = Parameters.Magnetometers()
-        self.Magnetorquers_fault = Parameters.Magnetorquers()
-        self.Control_fault = Parameters.Overall_control()
-        self.Common_data_transmission_fault = Parameters.Common_data_transmission()
-        self.Sensors_general_fault = Parameters.Sensors_general()
-        self.Star_tracker_fault = Parameters.Star_tracker()
 
         self.Orbit_Data = {
             "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
@@ -134,6 +136,20 @@ class Dynamics:
         self.fault = "None"                      # Current fault of the system
         # The Orbit_Data dictionary is used to store all the measurements for each timestep (Ts)
         # Each Orbit has an induced fault within the ADCS. 
+
+    def initiate_fault_parameters(self):
+        """
+        All the current fault classes
+        """
+        self.Reaction_wheel_fault = Parameters.Reaction_wheels(self.seed)
+        self.Earth_sensor_fault = Parameters.Earth_Sensor(self.seed)    
+        self.Sun_sensor_fault = Parameters.Sun_sensor(self.seed)
+        self.Magnetometer_fault = Parameters.Magnetometers(self.seed)
+        self.Magnetorquers_fault = Parameters.Magnetorquers(self.seed)
+        self.Control_fault = Parameters.Overall_control(self.seed)
+        self.Common_data_transmission_fault = Parameters.Common_data_transmission(self.seed)
+        self.Sensors_general_fault = Parameters.Sensors_general(self.seed)
+        #self.Star_tracker_fault = Parameters.Star_tracker(self.seed)
 
     # Function to calculate the satellite angular velocity based on the derivative thereof
     def rungeKutta_w(self, x0, w, x, h, r_sat):
@@ -197,21 +213,28 @@ class Dynamics:
     def Fault_implementation(self):
         if self.fault == "None":
             Faults = []
-            Faults.append(self.Reaction_wheel_fault.Failure_chance(self.t)) 
-            Faults.append(self.Earth_sensor_fault.Failure_chance(self.t))   
-            Faults.append(self.Sun_sensor_fault.Failure_chance(self.t))
-            Faults.append(self.Magnetometer_fault.Failure_chance(self.t))
-            Faults.append(self.Magnetorquers_fault.Failure_chance(self.t))
-            Faults.append(self.Control_fault.Failure_chance(self.t))
-            Faults.append(self.Common_data_transmission_fault.Failure_chance(self.t))
-            Faults.append(self.Sensors_general_fault.Failure_chance(self.t))
-            Faults.append(self.Star_tracker_fault.Failure_chance(self.t))
+            True_faults = []
+            Faults.append(self.Reaction_wheel_fault.Failure_Reliability_area(self.t)) 
+            Faults.append(self.Earth_sensor_fault.Failure_Reliability_area(self.t))   
+            Faults.append(self.Sun_sensor_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Magnetometer_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Magnetorquers_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Control_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Common_data_transmission_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Sensors_general_fault.Failure_Reliability_area(self.t))
+            #Faults.append(self.Star_tracker_fault.Failure_Reliability_area(self.t))
             for fault in Faults:
                 if fault != "None":
-                    self.fault = fault
-                    break
+                    True_faults.append(fault)
+                
+            if True_faults:
+                self.fault = True_faults[self.np_random.randint(0,len(True_faults))]
+                print(self.fault)
 
     def rotation(self):
+        if self.t == SET_PARAMS.time:
+            self.initiate_fault_parameters()
+
         self.Fault_implementation()
 
         self.r_sat, v_sat, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
@@ -281,25 +304,40 @@ class Dynamics:
         self.Orbit_Data["Current fault binary"].append(0 if self.fault == "NoneNone" else 1)
 
 def loop(index, Data, orbit_descriptions):
-    print("Number of multiple orbits", index)  
     if SET_PARAMS.Display:
         satellite = view.initializeCube(SET_PARAMS.Dimensions)
         pv = view.ProjectionViewer(1920, 1080, satellite)
 
+    """
     for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
         w, q, A, r, sun_in_view = D.rotation()
         if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
             pv.run(w, q, A, r, sun_in_view)
+    """
+    while D.fault == "None":
+        w, q, A, r, sun_in_view = D.rotation()
+        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+            pv.run(w, q, A, r, sun_in_view)
+    
+    """
+    for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+        w, q, A, r, sun_in_view = D.rotation()
+        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+            pv.run(w, q, A, r, sun_in_view)
+    """
 
     if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
         visualize_data(D)
-
+        
+    print("Number of multiple orbits", index)  
     Data[index] = D.Orbit_Data
     orbit_descriptions[index] =str(index)
+    df = pd.DataFrame(D.Orbit_Data, columns = D.Orbit_Data.keys())
+    df.to_csv(SET_PARAMS.csv_filename + str(i) + ".csv")
+
 
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
-    D = Dynamics()
     sense = Sensors()
     threads = []
     """
@@ -314,17 +352,32 @@ if __name__ == "__main__":
     orbit_descriptions = manager.dict()
 
     for i in range(SET_PARAMS.Number_of_multiple_orbits):
+        D = Dynamics(i)
         t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
         threads.append(t)
         t.start()
     
+    dataframe = []
+    i = 0
     for process in threads:
         process.join()
-
+        dataframe.append(pd.DataFrame.from_dict(Data[i]))
+        i += 1
 
     if SET_PARAMS.Save_excel_file:
         save_as_excel(Data.values(), orbit_descriptions.values())
+    elif SET_PARAMS.Save_csv_file:
+        save_as_csv(Data.values(), orbit_descriptions.values())
     else:
-        save_as_pickle(Data)
-
+        save_as_pickle(Data.values())
+"""
+if __name__ == "__main__":
+    D = Dynamics()
+    sense = Sensors()
+    print(D.Reaction_wheel_fault.Reliability_area)
+    for j in range(SET_PARAMS.Number_of_multiple_orbits):
+        for i in range(1,int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+            if D.Reaction_wheel_fault.Failure_Reliability_area(i) == True:
+                print("Failed")
+"""
 
