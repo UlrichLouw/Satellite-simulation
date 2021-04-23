@@ -131,7 +131,7 @@ class Dynamics:
             "Current fault binary": []
         }
 
-        self.zeros = np.zeros((17,), dtype = int)
+        self.zeros = np.zeros((SET_PARAMS.number_of_faults,), dtype = int)
 
         self.fault = "None"                      # Current fault of the system
         # The Orbit_Data dictionary is used to store all the measurements for each timestep (Ts)

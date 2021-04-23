@@ -3,7 +3,7 @@ import math
 import numpy as np
 import igrf_utils
 from scipy import interpolate
-IGRF_FILE = r'utils/IGRF13.shc'
+IGRF_FILE = r'./Extra/IGRF13.shc'
 igrf = igrf_utils.load_shcfile(IGRF_FILE, None)
 f = interpolate.interp1d(igrf.time, igrf.coeffs)
 

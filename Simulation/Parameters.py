@@ -126,7 +126,7 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 4000
+    Number_of_orbits = 0.001
     Number_of_multiple_orbits = 20
     """
     Visualize measurements
@@ -161,6 +161,7 @@ class SET_PARAMS:
     """
     Fault types and fault parameters
     """
+    number_of_faults = 17
     Fault_names = {
     "None": 1,
     "Electronics": 2,
@@ -180,7 +181,7 @@ class SET_PARAMS:
     "Insertion": 16,
     "High_noise": 17,
     }
-    likelyhood_multiplier = 1
+    likelyhood_multiplier = 1000
     Fault_simulation_mode = 1 # Continued failure, a mistake that does not go back to normal
     Fault_simulation_mode = 0 # Failure is based on specified class failure rate. Multiple failures can occure simultaneously
 
@@ -255,7 +256,7 @@ class Reaction_wheels(Fault_parameters):
     def __init__(self, seed):
         self.angular_wheels = SET_PARAMS.wheel_angular_d_max
         self.angular_wheels_max = SET_PARAMS.h_ws_max*random_size(minimum = Min_high_speed_percentage, maximum = Max_high_speed_percentage)
-        self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier# 2.5e-7 * SET_PARAMS.likelyhood_multiplier
+        self.Fault_rate_per_hour = 2.5e-7 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 3
         self.failures = {
             0: "Electronics",

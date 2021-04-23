@@ -1,3 +1,7 @@
+import sys
+
+sys.path.insert(1, './Simulation')
+
 import pandas as pd
 from Parameters import SET_PARAMS
 import numpy as np
