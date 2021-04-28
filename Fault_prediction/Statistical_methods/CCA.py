@@ -23,21 +23,19 @@ if __name__ == "__main__":
                                                         columns_compare_to = ["Angular momentum of wheels x", "Angular momentum of wheels y", "Angular momentum of wheels z"])
         All_orbits.append(Orbit)
 
-        if use_previously_saved_models == False:
-            print(index)
-            # Split each dataset into two halves: training set and test set
-            train1 = Y[:int(nSamples/2)]
-            train2 = X[:int(nSamples/2)]
-            test1 = Y[int(nSamples/2):]
-            test2 = X[int(nSamples/2):]
+        # Split each dataset into two halves: training set and test set
+        train1 = Y[:int(nSamples/2)]
+        train2 = X[:int(nSamples/2)]
+        test1 = Y[int(nSamples/2):]
+        test2 = X[int(nSamples/2):]
 
-            # Create a cca object as an instantiation of the CCA object class. 
-            cca = rcca.CCA(kernelcca = False, reg = 0., numCC = 2)
+        # Create a cca object as an instantiation of the CCA object class. 
+        cca = rcca.CCA(kernelcca = False, reg = 0., numCC = 2)
 
-            # Use the train() method to find a CCA mapping between the two training sets.
-            cca.train([train1, train2])
+        # Use the train() method to find a CCA mapping between the two training sets.
+        cca.train([train1, train2])
 
-            # Use the validate() method to test how well the CCA mapping generalizes to the test data.
-            # For each dimension in the test data, correlations between predicted and actual data are computed.
-            testcorrs = cca.validate([test1, test2])
-            print(testcorrs)
+        # Use the validate() method to test how well the CCA mapping generalizes to the test data.
+        # For each dimension in the test data, correlations between predicted and actual data are computed.
+        testcorrs = cca.validate([test1, test2])
+        print(testcorrs)

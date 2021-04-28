@@ -126,8 +126,8 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 0.001
-    Number_of_multiple_orbits = 20
+    Number_of_orbits = 1
+    Number_of_multiple_orbits = 1
     """
     Visualize measurements
     """
@@ -141,8 +141,8 @@ class SET_PARAMS:
     """
     CSV file parameters
     """
-    Save_excel_file = False
-    Save_csv_file = False
+    save_as = ".csv"
+    load_as = ".csv"
     """
     Storage of data for prediction
     """
@@ -151,9 +151,7 @@ class SET_PARAMS:
     buffer_size = 20
 
     # File names for the storage of the data attained during the simulation
-    excel_filename = "Data_files/Faults" + data_mode + ".xlsx"
-    csv_filename = "Data_files/Faults" + data_mode
-    pickle_filename = "Data_files/Faults" + data_mode
+    filename = "Data_files/Faults" + data_mode
     """
     Mode of operation
     """

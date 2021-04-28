@@ -36,7 +36,7 @@ def Transformation_matrix(q):
 
 # Function to save a csv file of simulation data
 def save_as_excel(Data, sheetnames):
-    with pd.ExcelWriter(SET_PARAMS.excel_filename) as writer:
+    with pd.ExcelWriter(SET_PARAMS.filename + ".xlsx") as writer:
         i = 0
         for data in Data:
             df = pd.DataFrame(data, columns = data.keys())
@@ -45,20 +45,14 @@ def save_as_excel(Data, sheetnames):
             i += 1
 
 # Save as csv file
-def save_as_csv(Data, sheetnames):
-    i = 0
-    for data in Data:
-        df = pd.DataFrame(data, columns = data.keys())
-        df.to_csv(SET_PARAMS.csv_filename + str(i) + ".csv")
-        i += 1
+def save_as_csv(Data, orbit):
+    df = pd.DataFrame(Data, columns = Data.keys())
+    df.to_csv(SET_PARAMS.filename + str(orbit) + ".csv")
 
 # Function to save a pickle file of simulation data
-def save_as_pickle(Data):
-    i = 0
-    for data in Data:
-        df = pd.DataFrame(data, columns = data.keys())
-        df.to_pickle(SET_PARAMS.pickle_filename + str(i) + ".pkl")
-        i += 1
+def save_as_pickle(Data, orbit):
+    df = pd.DataFrame(Data, columns = Data.keys())
+    df.to_pickle(SET_PARAMS.filename + str(orbit) + ".pkl")
 
 # Function to visualize data as graphs
 def visualize_data(D):
@@ -308,76 +302,60 @@ def loop(index, Data, orbit_descriptions):
         satellite = view.initializeCube(SET_PARAMS.Dimensions)
         pv = view.ProjectionViewer(1920, 1080, satellite)
 
-    """
     for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
         w, q, A, r, sun_in_view = D.rotation()
         if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
             pv.run(w, q, A, r, sun_in_view)
-    """
-    while D.fault == "None":
-        w, q, A, r, sun_in_view = D.rotation()
-        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
-            pv.run(w, q, A, r, sun_in_view)
-    
-    """
-    for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
-        w, q, A, r, sun_in_view = D.rotation()
-        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
-            pv.run(w, q, A, r, sun_in_view)
-    """
 
     if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
         visualize_data(D)
         
     print("Number of multiple orbits", index)  
     Data[index] = D.Orbit_Data
-    orbit_descriptions[index] =str(index)
-    df = pd.DataFrame(D.Orbit_Data, columns = D.Orbit_Data.keys())
-    df.to_csv(SET_PARAMS.csv_filename + str(i) + ".csv")
+    orbit_descriptions[index] = str(index)
+    if SET_PARAMS.save_as == ".csv":
+        save_as_csv(D.Orbit_Data, index)
+    else:
+        save_as_pickle(D.Orbit_Data, index)
 
 
 if __name__ == "__main__":
     # FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA
     sense = Sensors()
-    threads = []
-    """
-    for i in range(SET_PARAMS.Number_of_multiple_orbits):
-        threads.append(i)
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = executor.map(loop, threads)
-    """
-    manager = multiprocessing.Manager()
-    Data = manager.dict()
-    orbit_descriptions = manager.dict()
 
-    for i in range(SET_PARAMS.Number_of_multiple_orbits):
-        D = Dynamics(i)
-        t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
-        threads.append(t)
-        t.start()
-    
-    dataframe = []
-    i = 0
-    for process in threads:
-        process.join()
-        dataframe.append(pd.DataFrame.from_dict(Data[i]))
-        i += 1
+    if SET_PARAMS.save_as == ".xlsx":
+        Data = []
+        orbit_descriptions = []
+        for i in range(SET_PARAMS.Number_of_multiple_orbits):
+            D = Dynamics(i)
+            for j in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+                w, q, A, r, sun_in_view = D.rotation()
+                if SET_PARAMS.Display and j%SET_PARAMS.skip == 0:
+                    pv.run(w, q, A, r, sun_in_view)
+            
+            Data.append(D.Orbit_Data)
+            orbit_descriptions.append(str(i))
 
-    if SET_PARAMS.Save_excel_file:
-        save_as_excel(Data.values(), orbit_descriptions.values())
-    elif SET_PARAMS.Save_csv_file:
-        save_as_csv(Data.values(), orbit_descriptions.values())
+        save_as_excel(Data, orbit_descriptions)
     else:
-        save_as_pickle(Data.values())
-"""
-if __name__ == "__main__":
-    D = Dynamics()
-    sense = Sensors()
-    print(D.Reaction_wheel_fault.Reliability_area)
-    for j in range(SET_PARAMS.Number_of_multiple_orbits):
-        for i in range(1,int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
-            if D.Reaction_wheel_fault.Failure_Reliability_area(i) == True:
-                print("Failed")
-"""
+        threads = []
+
+        manager = multiprocessing.Manager()
+        Data = manager.dict()
+        orbit_descriptions = manager.dict()
+        for i in range(SET_PARAMS.Number_of_multiple_orbits):
+            D = Dynamics(i)
+            t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
+            threads.append(t)
+            t.start()
+        
+        dataframe = []
+        i = 0
+        for process in threads:
+            process.join()
+            dataframe.append(pd.DataFrame.from_dict(Data[i]))
+            i += 1
+
+
 
