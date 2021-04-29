@@ -18,7 +18,7 @@ def Binary_split(classified_data):
     return classified_data
 
 def Dataset_order(index, binary_set, buffer, categorical_num, use_previously_saved_models = False, columns_compare = None, columns_compare_to = None):
-    X_buffer_replaced = []
+    #X_buffer_replaced = []
     if SET_PARAMS.load_as == ".xlsx":
         excel_file = SET_PARAMS.filename + ".xlsx"
         xls = pd.ExcelFile(excel_file)
@@ -45,12 +45,12 @@ def Dataset_order(index, binary_set, buffer, categorical_num, use_previously_sav
             temp = Orbit[i]
         
         Orbit = Orbit[columns_to_keep]
-        X = Orbit[columns_compare]
-        Y = Orbit[columns_compare_to]
+        X = Orbit[columns_compare].to_numpy()
+        Y = Orbit[columns_compare_to].to_numpy()
     else:
         Orbit.drop(columns = ['Sun in view'], inplace = True)
-        X = Orbit.iloc[:,0:-1].values
-        Y = Orbit.iloc[:,-1].values
+        X = Orbit.iloc[:,0:-1].to_numpy()
+        Y = Orbit.iloc[:,-1].to_numpy()
 
     buffer_x = collections.deque(maxlen = SET_PARAMS.buffer_size)
     buffer_correlation_sun_earth_magnetometer = collections.deque(maxlen = SET_PARAMS.buffer_size)
@@ -69,15 +69,18 @@ def Dataset_order(index, binary_set, buffer, categorical_num, use_previously_sav
                 buffer_y.append(np.fromstring(y[i-SET_PARAMS.buffer_size][1:-1], dtype = float, sep=','))
             #Binary_stat_fault(buffer_correlation_sun_earth_magnetometer)
             X_buffer.append(np.asarray(buffer_x).flatten())
-            X_buffer_replaced.append(np.asarray(X_buffer).flatten())
+            #X_buffer_replaced.append(np.asarray(X_buffer).flatten())
 
-    X = np.asarray(X_buffer_replaced)
+        X = np.asarray(X_buffer)
     if use_previously_saved_models == True:
         Y = np.asarray(buffer_y)
         Y = Y.reshape(X.shape[0], Y.shape[1])
         Y_buffer.append(Y)
-    else:
+    elif buffer == True:
         Y = np.asarray(Y[SET_PARAMS.buffer_size:]).reshape(X.shape[0],1)
+        Y_buffer.append(Y)
+    else:
+        Y = np.asarray(Y).reshape(X.shape[0],1)
         Y_buffer.append(Y)
 
     return Y, Y_buffer, X, X_buffer, Orbit

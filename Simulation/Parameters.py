@@ -126,8 +126,8 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 1
-    Number_of_multiple_orbits = 1
+    Number_of_orbits = 100
+    Number_of_multiple_orbits = 160
     """
     Visualize measurements
     """
@@ -179,7 +179,7 @@ class SET_PARAMS:
     "Insertion": 16,
     "High_noise": 17,
     }
-    likelyhood_multiplier = 1000
+    likelyhood_multiplier = 10000
     Fault_simulation_mode = 1 # Continued failure, a mistake that does not go back to normal
     Fault_simulation_mode = 0 # Failure is based on specified class failure rate. Multiple failures can occure simultaneously
 

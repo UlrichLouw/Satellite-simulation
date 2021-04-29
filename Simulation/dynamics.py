@@ -288,24 +288,30 @@ class Dynamics:
         self.Orbit_Data["Angular momentum of wheels y"].append(self.angular_momentum[1][0])
         self.Orbit_Data["Angular momentum of wheels z"].append(self.angular_momentum[2][0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)
-        if self.sun_in_view == False and self.fault == "Catastrophic_sun" or self.fault == "Erroneous":
+        if self.sun_in_view == False and (self.fault == "Catastrophic_sun" or self.fault == "Erroneous"):
             self.Orbit_Data["Current fault"].append("None")
+            temp = list(self.zeros)
+            temp[Fault_names_to_num["None"] - 1] = 1
+            self.Orbit_Data["Current fault numeric"].append(temp)
+            self.Orbit_Data["Current fault binary"].append(0)
         else:
             self.Orbit_Data["Current fault"].append(self.fault)
-        temp = list(self.zeros)
-        temp[Fault_names_to_num[self.fault] - 1] = 1
-        self.Orbit_Data["Current fault numeric"].append(temp)
-        self.Orbit_Data["Current fault binary"].append(0 if self.fault == "NoneNone" else 1)
+            temp = list(self.zeros)
+            temp[Fault_names_to_num[self.fault] - 1] = 1
+            self.Orbit_Data["Current fault numeric"].append(temp)
+            self.Orbit_Data["Current fault binary"].append(0 if self.fault == "None" else 1)
 
 def loop(index, Data, orbit_descriptions):
     if SET_PARAMS.Display:
         satellite = view.initializeCube(SET_PARAMS.Dimensions)
         pv = view.ProjectionViewer(1920, 1080, satellite)
 
-    for i in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
+    for i in range(1, int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))):
         w, q, A, r, sun_in_view = D.rotation()
         if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
             pv.run(w, q, A, r, sun_in_view)
+        if i%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/10)) == 0:
+            print("Number of time steps for orbit loop number", index, " = ", int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))/i)
 
     if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
         visualize_data(D)
@@ -344,18 +350,17 @@ if __name__ == "__main__":
         manager = multiprocessing.Manager()
         Data = manager.dict()
         orbit_descriptions = manager.dict()
-        for i in range(SET_PARAMS.Number_of_multiple_orbits):
+        for i in range(1,SET_PARAMS.Number_of_multiple_orbits+1):
             D = Dynamics(i)
             t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
             threads.append(t)
             t.start()
-        
-        dataframe = []
-        i = 0
-        for process in threads:
-            process.join()
-            dataframe.append(pd.DataFrame.from_dict(Data[i]))
-            i += 1
+            print("Beginning of", i)
+            if i%15 == 0:
+                for process in threads:
+                    process.join()
+
+                threads = []
 
 
 

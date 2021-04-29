@@ -137,7 +137,7 @@ def prediction_NN(X, Y, index, direction):
             loss='binary_crossentropy',
             metrics=['Precision'])
 
-    batch_size = 32 # A small batch sized is used for demonstration purposes
+    batch_size = 1000 # A small batch sized is used for demonstration purposes
 
     model.fit(X_train, y_train, epochs=10, batch_size = batch_size, use_multiprocessing=True, verbose=1)
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
         All_orbits.append(Orbit)
 
         if use_previously_saved_models == False:
-            cm = prediction_NN(X, Y, index)
+            cm = prediction_NN(X, Y, index, None)
             print(cm, str(index))      
     
     if buffer == False:

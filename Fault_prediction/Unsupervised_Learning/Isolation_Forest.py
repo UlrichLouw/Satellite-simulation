@@ -11,6 +11,16 @@ from scipy.interpolate import griddata
 import numpy.ma as ma
 from numpy.random import uniform, seed
 
+import sys
+
+sys.path.insert(1, './Simulation')
+sys.path.insert(1, './Fault_prediction')
+
+import pandas as pd
+from Parameters import SET_PARAMS
+from Fault_utils import Dataset_order
+import os
+
 def getDepth(x, root, d):
     n = root.n
     p = root.p
@@ -37,7 +47,7 @@ if __name__ == "__main__":
     All_orbits = []
     X_buffer = []
     Y_buffer = []
-    buffer = True
+    buffer = False
     binary_set = True
     use_previously_saved_models = False
     categorical_num = True
@@ -46,20 +56,17 @@ if __name__ == "__main__":
         Y, Y_buffer, X, X_buffer, Orbit = Dataset_order(index, binary_set, buffer, categorical_num, use_previously_saved_models)
         All_orbits.append(Orbit)
 
-        F1 = iso.iForest(X, ntrees = 200, sample_size = 256, Extension_Level=1)
-        # Split each dataset into two halves: training set and test set
-        train1 = Y[:int(nSamples/2)]
-        train2 = X[:int(nSamples/2)]
-        test1 = Y[int(nSamples/2):]
-        test2 = X[int(nSamples/2):]
+        F1 = iso.iForest(X, ntrees = 500, sample_size = 1000, ExtensionLevel=1)
 
-        # Create a cca object as an instantiation of the CCA object class. 
-        cca = rcca.CCA(kernelcca = False, reg = 0., numCC = 2)
+        xxx = np.array([[0,0.]])
+        SL0 = F1.compute_paths_single_tree(xxx, 0)
 
-        # Use the train() method to find a CCA mapping between the two training sets.
-        cca.train([train1, train2])
+        S1 = F1.compute_paths(X_in=X)
 
-        # Use the validate() method to test how well the CCA mapping generalizes to the test data.
-        # For each dimension in the test data, correlations between predicted and actual data are computed.
-        testcorrs = cca.validate([test1, test2])
-        print(testcorrs)
+        ss1=np.argsort(S1)
+
+        number_of_errors = np.sum(Y % 2 == 1)
+        print(np.sum(Y[ss1[:number_of_errors]])/number_of_errors, index)
+
+"""
+To determine whether a single point within
