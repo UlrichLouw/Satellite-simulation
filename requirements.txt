@@ -12,3 +12,4 @@ seaborn
 openpyxl
 cython
 eif
+mpld3

@@ -11,16 +11,20 @@ import matplotlib.pyplot as plt
 import matplotlib.backends.backend_agg as agg
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+from pathlib import Path
+
+zoom_out_factor = 10
 
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
     def __init__(self, width, height, sat_body):
         self.Radius_earth = SET_PARAMS.Radius_earth/1000
+        self.fault = "None"
         self.fig = plt.figure()
         self.ax = self.fig.gca(projection='3d')
-        self.ax.set_xlim3d(-self.Radius_earth*2, self.Radius_earth*2)
-        self.ax.set_ylim3d(-self.Radius_earth*2, self.Radius_earth*2)
-        self.ax.set_zlim3d(-self.Radius_earth*2, self.Radius_earth*2)
+        self.ax.set_xlim3d(-self.Radius_earth*zoom_out_factor, self.Radius_earth*zoom_out_factor)
+        self.ax.set_ylim3d(-self.Radius_earth*zoom_out_factor, self.Radius_earth*zoom_out_factor)
+        self.ax.set_zlim3d(-self.Radius_earth*zoom_out_factor, self.Radius_earth*zoom_out_factor)
         self.canvas = agg.FigureCanvasAgg(self.fig)
         self.width = width
         self.height = height
@@ -140,6 +144,7 @@ class ProjectionViewer:
         self.screen.blit(textSurface, textRect)
 
     def plot(self,r,sun_in_view):
+        """
         if self.sun_in_view != sun_in_view or self.step == 0:
             u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
             x = np.cos(u)*np.sin(v)*(self.Radius_earth)
@@ -150,7 +155,7 @@ class ProjectionViewer:
             else:
                 self.ax.plot_wireframe(x, y, z, color="b", alpha = 0.1)
             self.sun_in_view = sun_in_view
-
+        """
         self.step += 1
         self.position_.append(r)
         position = np.array((self.position_))
@@ -159,8 +164,12 @@ class ProjectionViewer:
         z = position[:,2]
         if self.step%100 == 0:
             self.position_ = self.position_[int(len(self.position_)/2):-1]
-        self.ax.plot(x, y, z, color="k")
-        self.ax.plot(x[-1],y[-1],z[-1], color="r", marker="P")
+        #self.ax.plot(x, y, z, color="k")
+        if self.fault == "None":
+            self.ax.plot(x[-1],y[-1],z[-1], color="b", marker=".", alpha = 0.1)
+        else:
+            self.ax.plot(x[-1],y[-1],z[-1], color="r", marker=".", alpha = 0.05)
+
         self.canvas = agg.FigureCanvasAgg(self.fig)
         self.canvas.draw()
         renderer = self.canvas.get_renderer()
@@ -169,6 +178,12 @@ class ProjectionViewer:
         raw_data = renderer.tostring_rgb()
         size = self.canvas.get_width_height()
         self.screen.blit(pygame.image.fromstring(raw_data, size, "RGB"), (0,0))
+
+    def save_plot(self, fault):
+        path_to_folder = Path("Orbit_3D")
+        path_to_folder.mkdir(exist_ok=True)
+        self.ax.view_init(15,2450)
+        plt.savefig("Orbit_3D/" + str(fault) + ".png")
         
 
 def initializeCube(Dimensions):

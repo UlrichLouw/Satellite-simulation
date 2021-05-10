@@ -20,7 +20,7 @@ class SET_PARAMS:
     RAAN = 275*pi/180                   # Right ascension of the ascending node in radians
     AP = 0                              # argument of perigee
     Re = 6371.2                         # km magnetic reference radius
-    Mean_motion = 15.2355000000         # rev/day
+    Mean_motion = 150.2355000000         # rev/day
     Mean_anomaly = 29.3                 # degrees
     Argument_of_perigee = 57.4          # in degrees
     omega = Argument_of_perigee
@@ -126,12 +126,12 @@ class SET_PARAMS:
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 100
-    Number_of_multiple_orbits = 160
+    Number_of_orbits = 2
+    Number_of_multiple_orbits = 17
     """
     Visualize measurements
     """
-    Visualize = False
+    Visualize = True
     """
     Sensor Parameters
     """
@@ -141,7 +141,7 @@ class SET_PARAMS:
     """
     CSV file parameters
     """
-    save_as = ".csv"
+    save_as = ".xlsx"
     load_as = ".csv"
     """
     Storage of data for prediction
@@ -162,26 +162,32 @@ class SET_PARAMS:
     number_of_faults = 17
     Fault_names = {
     "None": 1,
-    "Electronics": 2,
-    "Overheated": 3, 
+    "Electronics_of_RW": 2,
+    "Overheated_RW": 3, 
     "Catastrophic_RW": 4,
     "Catastrophic_sun": 5, 
-    "Erroneous": 6, 
-    "Inverted_polarities": 7,
-    "Interference": 8, 
-    "Stop": 9, 
+    "Erroneous_sun": 6, 
+    "Inverted_polarities_magnetorquers": 7,
+    "Interference_magnetic": 8, 
+    "Stop_magnetometers": 9, 
     "Closed_shutter": 10,
-    "Increasing": 11, 
-    "Decrease": 12, 
-    "Oscillates": 13,
+    "Increasing_angular_RW_momentum": 11, 
+    "Decreasing_angular_RW_momentum": 12, 
+    "Oscillating_angular_RW_momentum": 13,
     "Bit_flip": 14,
     "Sign_flip": 15,
-    "Insertion": 16,
-    "High_noise": 17,
+    "Insertion_of_zero_bit": 16,
+    "General_sensor_high_noise": 17,
     }
-    likelyhood_multiplier = 10000
+    likelyhood_multiplier = 1
     Fault_simulation_mode = 1 # Continued failure, a mistake that does not go back to normal
     Fault_simulation_mode = 0 # Failure is based on specified class failure rate. Multiple failures can occure simultaneously
+    Fault_simulation_mode = 2 # A single fault occurs per orbit
+    fixed_orbit_failure = 2
+    """
+    For the fault simulation mode 2, the fault names must be the values based on keys
+    """
+    Fault_names_values = {value:key for key, value in Fault_names.items()}
 
 Min_high_noise = 5
 Max_high_noise = 10
@@ -190,10 +196,10 @@ Min_high_speed_percentage = 0.9
 Max_high_speed_percentage = 1
 
 min_inteference = 3
-max_interference = 5
+max_Interference_magnetic = 5
 
-Min_low_speed_percentage = 0.9
-Max_low_speed_percentage = 1
+Min_low_speed_percentage = 0
+Max_low_speed_percentage = 0.1
 
 def bitflip(x,pos):
     fs = pack('f',x)
@@ -219,7 +225,7 @@ def weibull(t,n,B):
     return (B / n) * (t / n)**(B - 1) * np.exp(-(t / n)**B)
 
 class Fault_parameters:
-    def __init__(self, Fault_per_hour, number_of_failures, failures, seed):
+    def __init__(self, Fault_per_hour = 0.1, number_of_failures = 0, failures = 0, seed = 0):
         self.np_random = np.random
         self.np_random.seed(seed)
         self.Fault_rate_per_hour = Fault_per_hour
@@ -254,26 +260,27 @@ class Reaction_wheels(Fault_parameters):
     def __init__(self, seed):
         self.angular_wheels = SET_PARAMS.wheel_angular_d_max
         self.angular_wheels_max = SET_PARAMS.h_ws_max*random_size(minimum = Min_high_speed_percentage, maximum = Max_high_speed_percentage)
+        self.angular_wheels_min = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
         self.Fault_rate_per_hour = 2.5e-7 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 3
         self.failures = {
-            0: "Electronics",
-            1: "Overheated",
+            0: "Electronics_of_RW",
+            1: "Overheated_RW",
             2: "Catastrophic_RW"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
 
-    def Electronics_failure(self, angular_wheels):
-        self.angular_wheels = (angular_wheels - angular_wheels/100) if self.failure == "Electronics" else angular_wheels
+    def Electronics_of_RW_failure(self, angular_wheels):
+        self.angular_wheels = np.maximum((angular_wheels - abs(angular_wheels)/10), self.angular_wheels_min*np.ones(angular_wheels.shape)) if self.failure == "Electronics_of_RW" else angular_wheels
         return self.angular_wheels
 
-    def Overheated(self, angular_wheels):
-        self.angular_wheels = (angular_wheels - angular_wheels/100) if self.failure == "Overheated" else angular_wheels
+    def Overheated_RW(self, angular_wheels):
+        self.angular_wheels = np.maximum((angular_wheels - abs(angular_wheels)/10), self.angular_wheels_min*np.ones(angular_wheels.shape)) if self.failure == "Overheated_RW" else angular_wheels
         return self.angular_wheels
 
-    def Catastrophic(self, angular_wheels):
-        self.angular_wheels = 0 if self.failure == "Catastrophic_RW" else angular_wheels
+    def Catastrophic_RW(self, angular_wheels):
+        self.angular_wheels = np.zeros(angular_wheels.shape) if self.failure == "Catastrophic_RW" else angular_wheels
         return self.angular_wheels
 
 class Sun_sensor(Fault_parameters):
@@ -282,50 +289,53 @@ class Sun_sensor(Fault_parameters):
         self.number_of_failures = 2
         self.failures = {
             0: "Catastrophic_sun",
-            1: "Erroneous"
+            1: "Erroneous_sun"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
-    def Catastrophic(self, sun_sensor):
+    def Catastrophic_sun(self, sun_sensor):
         return np.zeros(sun_sensor.shape) if self.failure == "Catastrophic_sun" else sun_sensor
 
-    def Erroneous(self, sun_sensor):
+    def Erroneous_sun(self, sun_sensor):
         # Sun_sensor must be provided as a unit vector
-        return self.np_random.uniform(-1,1,sun_sensor.shape) if self.failure == "Erroneous" else sun_sensor
+        return self.np_random.uniform(-1,1,sun_sensor.shape) if self.failure == "Erroneous_sun" else sun_sensor
 
 class Magnetorquers(Fault_parameters):
     def __init__(self, seed):
         self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 2
         self.failures = {
-            0: "Inverted_polarities",
-            1: "Interference"
+            0: "Inverted_polarities_magnetorquers",
+            1: "Interference_magnetic"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
     
-    def Inverted_polarities(self, magnetic_torquers):
+    def Inverted_polarities_magnetorquers(self, magnetic_torquers):
         # Inverted polarities meand that the magnetic torquers will move in the oppositie direction (thus multiplied by -1)
-        return -magnetic_torquers if self.failure == "Inverted_polarities" else magnetic_torquers
+        return -magnetic_torquers if self.failure == "Inverted_polarities_magnetorquers" else magnetic_torquers
 
-    def Interference(self, Magnetorquers):
-        return Magnetorquers*random_size(min_inteference, max_interference) if self.failure == "Interference" else magnetic_torquers
+    def Interference_magnetic(self, Magnetorquers):
+        return Magnetorquers*random_size(min_inteference, max_Interference_magnetic) if self.failure == "Interference_magnetic" else magnetic_torquers
 
 class Magnetometers(Fault_parameters):
     def __init__(self, seed):
         self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 2
         self.failures = {
-            0: "Stop",
-            1: "Interference"
+            0: "Stop_magnetometers",
+            1: "Interference_magnetic"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
-    def Stop(self, magnetometer):
+    def Stop_magnetometers(self, magnetometer):
         # All of the magnetometers are zero
-        return np.zeros(magnetometer.shape) if self.failure == "Stop" else magnetometer
+        if self.failure == "Stop_magnetometers":
+            magnetometer = np.zeros(magnetometer.shape)
 
-    def Interference(self, magnetometers):
-        return magnetometers*random_size(min_inteference, max_interference) if self.failure == "Interference" else magnetometers
+        return magnetometer
+
+    def Interference_magnetic(self, magnetometers):
+        return magnetometers*random_size(min_inteference, max_Interference_magnetic) if self.failure == "Interference_magnetic" else magnetometers
 
 class Earth_Sensor(Fault_parameters):
     def __init__(self, seed):
@@ -353,26 +363,26 @@ class Overall_control(Fault_parameters):
         self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 3
         self.failures = {
-            0: "Increasing",
-            1: "Decrease",
-            2: "Oscillates"
+            0: "Increasing_angular_RW_momentum",
+            1: "Decreasing_angular_RW_momentum",
+            2: "Oscillating_angular_RW_momentum"
         }
         self.previous_mul = -1
-        self.oscillation_magnitude = 0.1
+        self.oscillation_magnitude = 0.2
         self.angular_wheels_max = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_high_speed_percentage*0.75, maximum = Max_high_speed_percentage)
         self.angular_wheels_min = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
-    def Increasing(self, angular_wheels):
-        self.angular_wheels = np.minimum((angular_wheels - angular_wheels/100), self.angular_wheels_max*np.ones(angular_wheels.shape)) if self.failure == "Increasing" else angular_wheels
+    def Increasing_angular_RW_momentum(self, angular_wheels):
+        self.angular_wheels = np.minimum((angular_wheels + abs(angular_wheels)/10), self.angular_wheels_max*np.ones(angular_wheels.shape)) if self.failure == "Increasing_angular_RW_momentum" else angular_wheels
         return self.angular_wheels
 
-    def Decrease(self, angular_wheels):
-        self.angular_wheels = np.maximum(angular_wheels - angular_wheels/100, self.angular_wheels_min*np.ones(angular_wheels.shape)) if self.failure == "Decreasing" else angular_wheels
+    def Decreasing_angular_RW_momentum(self, angular_wheels):
+        self.angular_wheels = np.maximum((angular_wheels - abs(angular_wheels)/10), self.angular_wheels_min*np.ones(angular_wheels.shape)) if self.failure == "Decreasing" else angular_wheels
         return self.angular_wheels
 
-    def Oscillates(self, angular_wheels):
-        angular_wheels = (angular_wheels + angular_wheels*self.oscillation_magnitude*self.previous_mul) if self.failure == "Oscillates" else angular_wheels
+    def Oscillating_angular_RW_momentum(self, angular_wheels):
+        angular_wheels = (angular_wheels + angular_wheels*self.oscillation_magnitude*self.previous_mul) if self.failure == "Oscillating_angular_RW_momentum" else angular_wheels
         self.previous_mul = self.previous_mul*(-1)
         return angular_wheels
 
@@ -384,7 +394,7 @@ class Common_data_transmission(Fault_parameters):
         self.failures = {
             0: "Bit_flip",
             1: "Sign_flip",
-            2: "Insertion"
+            2: "Insertion_of_zero_bit"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
@@ -398,18 +408,18 @@ class Common_data_transmission(Fault_parameters):
     def Sign_flip(self, value_to_change):
         return -value_to_change if self.failure == "Sign_flip" else value_to_change
 
-    def Insertion(self, value_to_change):
-        return 0 if self.failure == "Insertion" else value_to_change
+    def Insertion_of_zero_bit(self, value_to_change):
+        return np.zeros(value_to_change.shape) if self.failure == "Insertion_of_zero_bit" else value_to_change
 
 class Sensors_general(Fault_parameters):
     def __init__(self, seed):
         self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 1
         self.failures = {
-            0: "High_noise"
+            0: "General_sensor_high_noise"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
-    def High_noise(self, sensor):
-        return sensor*random_size(minimum = Min_high_noise, maximum = Max_high_noise) if self.failure == "High_noise" else sensor
+    def General_sensor_high_noise(self, sensor):
+        return sensor*random_size(minimum = Min_high_noise, maximum = Max_high_noise) if self.failure == "General_sensor_high_noise" else sensor
 

@@ -5,7 +5,7 @@ import igrf_utils
 from scipy import interpolate
 
 
-IGRF_FILE = r'Simulation_data/IGRF13.shc'
+IGRF_FILE = r'Simulation/Simulation_data/IGRF13.shc'
 igrf = igrf_utils.load_shcfile(IGRF_FILE, None)
 f = interpolate.interp1d(igrf.time, igrf.coeffs)
 
