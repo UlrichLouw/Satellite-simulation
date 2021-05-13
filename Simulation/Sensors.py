@@ -28,8 +28,6 @@ class Sensors:
         rsun = r_o * np.array(([np.cos(lambda_e*pi/180)],[np.cos(epsilon*pi/180)*np.sin(lambda_e*pi/180)],[np.sin(epsilon*pi/180)*np.sin(lambda_e*pi/180)]))
         rsun = rsun*(149597871)*1000
         norm_rsun = np.linalg.norm(rsun)
-        rsun += np.random.normal(0,SET_PARAMS.Sun_noise*norm_rsun,rsun.shape)
-        norm_rsun = np.linalg.norm(rsun)
         S_EIC = rsun - np.reshape(self.r_sat_EIC, (3,1))
         norm_S_EIC = np.linalg.norm(S_EIC)
         norm_r_sat = max(np.linalg.norm(self.r_sat_EIC),SET_PARAMS.Radius_earth)
@@ -42,30 +40,25 @@ class Sensors:
             return S_EIC, self.in_sun_view 
         else:
             self.in_sun_view = True
-            return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
+        return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
 
-    def magnetometer(self, t, error = [False, False, False]):
+    def magnetometer(self, t):
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
         B = self.earth.scalar_potential_function(latitude, longitude, altitude)
         B += np.random.normal(0,np.linalg.norm(B)*SET_PARAMS.Magnetometer_noise,B.shape)
 
         return B/np.linalg.norm(B)
 
-    def satellite_vector(self, t, error=[False,False, False]):
+    def satellite_vector(self, t):
         e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t/86400)
-        self.r_sat_EIC = np.array((r_sat))*1000 # convert r_sat to m
-        self.v_sat_EIC = np.array((v_sat))*1000 # v_sat to m/s
-
-        self.r_sat_EIC[0] += np.random.normal(0,abs(self.r_sat_EIC[0]*SET_PARAMS.Earth_noise))
-        self.r_sat_EIC[1] += np.random.normal(0,abs(self.r_sat_EIC[1]*SET_PARAMS.Earth_noise))
-        self.r_sat_EIC[2] += np.random.normal(0,abs(self.r_sat_EIC[2]*SET_PARAMS.Earth_noise))
-        self.v_sat_EIC[0] += np.random.normal(0,abs(self.v_sat_EIC[0]*SET_PARAMS.Earth_noise))
-        self.v_sat_EIC[1] += np.random.normal(0,abs(self.v_sat_EIC[1]*SET_PARAMS.Earth_noise))
-        self.v_sat_EIC[2] += np.random.normal(0,abs(self.v_sat_EIC[2]*SET_PARAMS.Earth_noise))
+        self.r_sat_EIC = np.array((r_sat)) # convert r_sat to m
+        self.v_sat_EIC = np.array((v_sat)) # v_sat to m/s
     
         self.A_EFC_to_EIC = self.orbit.EFC_to_EIC(t)
-        self.r_sat_EFC = np.matmul(np.linalg.inv(self.A_EFC_to_EIC),self.r_sat_EIC/1000)
+        self.r_sat_EFC = np.matmul(np.linalg.inv(self.A_EFC_to_EIC),self.r_sat_EIC)
         self.A_EIC_to_ORC = self.orbit.EIC_to_ORC(self.r_sat_EIC, self.v_sat_EIC)
         self.r_sat = np.matmul(self.A_EIC_to_ORC, self.r_sat_EIC)
         self.v_sat = np.matmul(self.A_EIC_to_ORC, self.v_sat_EIC)
+        self.r_sat_EIC = self.r_sat_EIC*1000
+        self.v_sat_EIC = self.v_sat_EIC*1000
         return self.r_sat/np.linalg.norm(self.r_sat), self.v_sat/np.linalg.norm(self.v_sat), self.A_EIC_to_ORC, r_sat

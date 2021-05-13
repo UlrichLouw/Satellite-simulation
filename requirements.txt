@@ -13,3 +13,4 @@ openpyxl
 cython
 eif
 mpld3
+plotly

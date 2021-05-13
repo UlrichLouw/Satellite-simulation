@@ -5,6 +5,7 @@ import Parameters
 from Parameters import SET_PARAMS, Fault_parameters
 from Sensors import Sensors
 import matplotlib.pyplot as plt
+import Quaternion_functions
 import mpld3
 import time
 import csv
@@ -14,6 +15,11 @@ import concurrent.futures
 import multiprocessing
 from pathlib import Path
 import seaborn as sns
+from matplotlib.ticker import EngFormatter
+from decimal import Decimal
+import math
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 # The matplotlib cannot display plots while visual simulation runs.
@@ -58,6 +64,7 @@ def save_as_pickle(Data, orbit):
     df.to_pickle(SET_PARAMS.filename + str(orbit) + ".pkl")
 
 # Function to visualize data as graphs
+"""
 def visualize_data(D, fault):
     for i in D:
         if i == "Current fault" or i == "Current fault binary" or i == "Current fault numeric":
@@ -70,12 +77,58 @@ def visualize_data(D, fault):
             mpld3.save_html(fig, "Plots/" + str(fault) +"/"+ str(i)+".html")
             plt.close()
         else:
-            fig = plt.figure()
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize = (15,10), sharex=True)
             y = np.array((D[i]))
-            plt.plot(y)
-            plt.title(i)
-            mpld3.save_html(fig, "Plots/" + str(fault) +"/"+ str(i)+".html")
+            direction_list = ['x','y','z']
+
+            for j in range(3):
+                sub = 311 + j
+                plt.subplot(sub)
+                subplot_values = y[:,j]
+                plt.plot(subplot_values)
+                plt.ylabel('unit vector')
+
+                plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
+                plt.ticklabel_format(axis="y", style="sci", scilimits=(0,0))
+                plt.xlabel('time')
+                plt.title(direction_list[j])
+
+            fig.tight_layout(pad=3.0)
+            fig.write_html("Plots/" + str(fault) +"/"+ str(i)+".html")
             plt.close()
+"""
+def visualize_data(D, fault):
+    for i in D:
+        if i == "Current fault" or i == "Current fault binary" or i == "Current fault numeric":
+            pass
+        elif i == "Sun in view":
+            pass
+        else:
+            y = np.array((D[i]))
+            fig = make_subplots(rows=3, cols=1)
+            x = y.shape[0]
+            x = np.arange(0,x,1)
+
+            fig.append_trace(go.Scatter(
+                x=x,
+                y=y[:,0],
+                name = "x",
+            ), row=1, col=1)
+
+            fig.append_trace(go.Scatter(
+                x=x,
+                y=y[:,1],
+                name = "y",
+            ), row=2, col=1)
+
+            fig.append_trace(go.Scatter(
+                x=x,
+                y=y[:,2],
+                name = 'z',
+            ), row=3, col=1)
+
+            fig.update_layout(height=600, width=600, title_text=str(i))
+            fig.write_html("Plots/" + str(fault) +"/"+ str(i)+".html")
 
 # Function to calculate the angular momentum based on the derivative thereof
 def rungeKutta_h(self, x0, angular, x, h, N_control):
@@ -116,13 +169,25 @@ class Dynamics:
         self.angular_momentum = SET_PARAMS.initial_angular_wheels # Angular momentum of satellite wheels
         self.faster_than_control = SET_PARAMS.faster_than_control   # If it is required that satellite must move faster around the earth than Ts
         self.control = Controller.Control()         # Controller.py is used for control of satellite    
-
+        """
         self.Orbit_Data = {
             "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
             "Magnetometer x": [], "Magnetometer y": [], "Magnetometer z": [],     #B vector in SBC
             "Earth x": [],"Earth y": [], "Earth z": [],            #Satellite position vector in ORC
             "Angular momentum of wheels x": [], "Angular momentum of wheels y": [], "Angular momentum of wheels z": [],      #Wheel angular velocity of each reaction wheel
             "Angular momentum of satellite x": [], "Angular momentum of satellite y": [], "Angular momentum of satellite z": [],
+            "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
+            "Current fault": [],                            #What the fault is that the system is currently experiencing
+            "Current fault numeric": [],
+            "Current fault binary": []
+        }
+        """
+        self.Orbit_Data = {
+            "Sun": [],            #S_o measurement (vector of sun in ORC)
+            "Magnetometer": [],    #B vector in SBC
+            "Earth": [],           #Satellite position vector in ORC
+            "Angular momentum of wheels": [],    #Wheel angular velocity of each reaction wheel
+            "Angular velocity of satellite": [],
             "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
             "Current fault": [],                            #What the fault is that the system is currently experiencing
             "Current fault numeric": [],
@@ -140,16 +205,49 @@ class Dynamics:
         # is fixed to the +z face
         # This is according to the orbit as defined by janse van vuuren
         # This is determined with the SBC frame
-        pass
+        angle_difference = Quaternion_functions.rad2deg(np.arccos(np.dot(self.r_sat_sbc, SET_PARAMS.Earth_sensor_position)))
+        if angle_difference < SET_PARAMS.Earth_sensor_angle:
+            self.r_sat = self.Earth_sensor_fault.normal_noise(self.r_sat, SET_PARAMS.Earth_noise)
+            self.r_sat = self.Earth_sensor_fault.General_sensor_high_noise(self.r_sat)
+            self.r_sat = self.Common_data_transmission_fault.Bit_flip(self.r_sat)
+            self.r_sat = self.Common_data_transmission_fault.Sign_flip(self.r_sat)
+            self.r_sat = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.r_sat) 
+        else:
+            self.r_sat_sbc = np.zeros(self.r_sat_sbc.shape)
 
     def determine_sun_vision(self):
         # For this specific satellite model, the fine sun sensor 
         # is fixed to the +x face and the coarse sun sensor 
         # is fixed to the -x face.
         # This is according to the orbit as defined by janse van vuuren
-        # This is determined with the SBC frame
-        pass
+        # This is determined with the SBC frame 
 
+        if self.sun_in_view:
+            angle_difference_fine = Quaternion_functions.rad2deg(np.arccos(np.dot(self.S_b[:,0], SET_PARAMS.Fine_sun_sensor_position)))
+            angle_difference_coarse = Quaternion_functions.rad2deg(np.arccos(np.dot(self.S_b[:,0], SET_PARAMS.Coarse_sun_sensor_position)))
+            if angle_difference_fine < SET_PARAMS.Fine_sun_sensor_angle:
+                self.S_b = self.Sun_sensor_fault.normal_noise(self.S_b, SET_PARAMS.Fine_sun_noise)
+                # Implement error or failure of sensor if applicable
+                self.S_b = self.Sun_sensor_fault.Catastrophic_sun(self.S_b, "Fine")
+                self.S_b = self.Sun_sensor_fault.Erroneous_sun(self.S_b, "Fine")
+
+                self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
+                self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
+                self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
+            
+
+            elif angle_difference_coarse < SET_PARAMS.Coarse_sun_sensor_angle:
+                self.S_b = self.Sun_sensor_fault.normal_noise(self.S_b, SET_PARAMS.Coarse_sun_noise)
+                # Implement error or failure of sensor if applicable
+                self.S_b = self.Sun_sensor_fault.Catastrophic_sun(self.S_b, "Coarse")
+                self.S_b = self.Sun_sensor_fault.Erroneous_sun(self.S_b, "Coarse")
+
+                self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
+                self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
+                self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
+            else:
+                self.S_b = np.zeros(self.S_b.shape)
+        
 
     def initiate_fault_parameters(self):
         """
@@ -162,7 +260,6 @@ class Dynamics:
         self.Magnetorquers_fault = Parameters.Magnetorquers(self.seed)
         self.Control_fault = Parameters.Overall_control(self.seed)
         self.Common_data_transmission_fault = Parameters.Common_data_transmission(self.seed)
-        self.Sensors_general_fault = Parameters.Sensors_general(self.seed)
     
     def initiate_purposed_fault(self, fault):
         self.fault = fault
@@ -173,20 +270,27 @@ class Dynamics:
         self.Magnetorquers_fault.failure = self.fault
         self.Control_fault.failure = self.fault
         self.Common_data_transmission_fault.failure = self.fault
-        self.Sensors_general_fault.failure = self.fault
         #self.Star_tracker_fault = Parameters.Star_tracker(self.seed)
 
     # Function to calculate the satellite angular velocity based on the derivative thereof
     def rungeKutta_w(self, x0, w, x, h, r_sat):
         N_aero = 0 #self.dist.Aerodynamic(self.A, self.A_EIC_to_ORC)
         N_rw = np.reshape(self.dist.Wheel_Imbalance(w, x),(3,1))    # Disturbance of a reaction wheel imbalance
-        Ngg = self.dist.Gravity_gradient_func(self.A)               # Disturbance of gravity gradient
+        Ngg = self.dist.Gravity_gradient_func(self.A_ORC_to_SBC)               # Disturbance of gravity gradient
         
         # Control torques implemented due to the control law
         N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.Control_fault)
 
         self.angular_momentum = np.clip(rungeKutta_h(self, x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
         
+        if "RW" in self.fault:
+            self.angular_momentum = self.Reaction_wheel_fault.Electronics_of_RW_failure(self.angular_momentum)
+            self.angular_momentum = self.Reaction_wheel_fault.Overheated_RW(self.angular_momentum)
+            self.angular_momentum = self.Reaction_wheel_fault.Catastrophic_RW(self.angular_momentum)
+            self.angular_momentum = self.Control_fault.Increasing_angular_RW_momentum(self.angular_momentum)
+            self.angular_momentum = self.Control_fault.Decreasing_angular_RW_momentum(self.angular_momentum)
+            self.angular_momentum = self.Control_fault.Oscillating_angular_RW_momentum(self.angular_momentum)
+
         N_gyro = -w * (np.matmul(self.Inertia,w) + self.angular_momentum)
 
         N_disturbance = Ngg + N_aero + N_rw + N_gyro                # All then disturbance torques added to the satellite
@@ -194,31 +298,21 @@ class Dynamics:
         n = int(np.round((x - x0)/h))
         y = w
         
-        if self.fault != "None":
-            y = self.Reaction_wheel_fault.Electronics_of_RW_failure(y)
-            y = self.Reaction_wheel_fault.Overheated_RW(y)
-            y = self.Reaction_wheel_fault.Catastrophic_RW(y)
-            y = self.Control_fault.Increasing_angular_RW_momentum(y)
-            y = self.Control_fault.Decreasing_angular_RW_momentum(y)
-            y = self.Control_fault.Oscillating_angular_RW_momentum(y)
-        
-        else:
-            for i in range(n):
-                k1 = h*((N_gyro + (-N_control_magnetic  + N_disturbance))) 
-                k2 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k1) 
-                k3 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k2) 
-                k4 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k3) 
-                y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
-        
-                x0 = x0 + h; 
+        for i in range(n):
+            k1 = h*((N_gyro + (-N_control_magnetic  + N_disturbance))) 
+            k2 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k1) 
+            k3 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k2) 
+            k4 = h*((N_gyro + (-N_control_magnetic  + N_disturbance)) + 0.5*k3) 
+            y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
+    
+            x0 = x0 + h; 
 
-            np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
+        np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
         return y
 
     # Function to calculate the satellite quaternion position based on the derivative thereof
-    def rungeKutta_q(self, x0, y0, x, h):
-        
+    def rungeKutta_q(self, x0, y0, x, h):      
         wx, wy, wz = self.w_bo[:,0]
         n = int(np.round((x - x0)/h))
 
@@ -233,8 +327,6 @@ class Dynamics:
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
             x0 = x0 + h; 
-
-        y = y/np.linalg.norm(y)
         
         return y
 
@@ -249,7 +341,6 @@ class Dynamics:
             Faults.append(self.Magnetorquers_fault.Failure_Reliability_area(self.t))
             Faults.append(self.Control_fault.Failure_Reliability_area(self.t))
             Faults.append(self.Common_data_transmission_fault.Failure_Reliability_area(self.t))
-            Faults.append(self.Sensors_general_fault.Failure_Reliability_area(self.t))
             #Faults.append(self.Star_tracker_fault.Failure_Reliability_area(self.t))
             for fault in Faults:
                 if fault != "None":
@@ -266,49 +357,38 @@ class Dynamics:
 
         self.Fault_implementation()
 
-        self.r_sat, self.v_sat_EIC, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control, error=self.Earth_sensor_fault)
-
-        # Implement error or failure of sensor if applicable
-        self.r_sat = self.Sensors_general_fault.General_sensor_high_noise(self.r_sat)
-        self.r_sat = self.Common_data_transmission_fault.Bit_flip(self.r_sat)
-        self.r_sat = self.Common_data_transmission_fault.Sign_flip(self.r_sat)
-        self.r_sat = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.r_sat)    
-        self.r_EIC = self.Sensors_general_fault.General_sensor_high_noise(np.asarray(r_EIC).astype(np.float64))
+        self.r_sat, self.v_sat_EIC, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t*self.faster_than_control)
+        self.r_EIC = self.Earth_sensor_fault.General_sensor_high_noise(np.asarray(r_EIC).astype(np.float64))
 
         self.S_EIC, self.sun_in_view = sense.sun(self.t*self.faster_than_control)
-        # Implement error or failure of sensor if applicable
-        self.S_EIC = self.Sensors_general_fault.General_sensor_high_noise(self.S_EIC)
-        self.S_EIC = self.Sun_sensor_fault.Catastrophic_sun(self.S_EIC)
-        self.S_EIC = self.Sun_sensor_fault.Erroneous_sun(self.S_EIC)
-        self.S_EIC = self.Common_data_transmission_fault.Bit_flip(self.S_EIC)
-        self.S_EIC = self.Common_data_transmission_fault.Sign_flip(self.S_EIC)
-        self.S_EIC = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_EIC)       
 
-        self.A = np.matmul(self.A_EIC_to_ORC, Transformation_matrix(self.q))
+        # Determine the DCM of the satellite
+        self.A_ORC_to_SBC = Transformation_matrix(self.q)
+        self.A_EIC_to_SBC = np.matmul(self.A_EIC_to_ORC, self.A_ORC_to_SBC)
         
-        self.r_sat_sbc = np.matmul(self.A, self.r_sat)
+        self.r_sat_sbc = np.matmul(self.A_ORC_to_SBC, self.r_sat)
         
-        self.S_o = np.matmul(self.A_EIC_to_ORC, self.S_EIC)
-        self.S_b = np.matmul(self.A, self.S_o)
+        self.S_b = np.matmul(self.A_EIC_to_SBC, self.S_EIC)
 
         self.determine_sun_vision()
         self.determine_earth_vision()
-        
+    
         self.Beta = sense.magnetometer(self.t) 
-        # Implement error or failure of sensor if applicable
-        self.Beta = self.Magnetometer_fault.Stop_magnetometers (self.Beta)
-        self.Beta = self.Magnetometer_fault.Interference_magnetic(self.Beta)
-        self.Beta = self.Sensors_general_fault.General_sensor_high_noise(self.Beta)
-        self.Beta = self.Common_data_transmission_fault.Bit_flip(self.Beta)
-        self.Beta = self.Common_data_transmission_fault.Sign_flip(self.Beta)
-        self.Beta = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.Beta)
 
-        self.B = np.matmul(self.A,np.matmul(self.A_EIC_to_ORC,self.Beta))
+        self.B = np.matmul(self.A_EIC_to_SBC,self.Beta)
+        # Implement error or failure of sensor if applicable
+        self.B = self.Magnetometer_fault.Stop_magnetometers (self.B)
+        self.B = self.Magnetometer_fault.Interference_magnetic(self.B)
+        self.B = self.Magnetometer_fault.General_sensor_high_noise(self.B)
+        self.B = self.Common_data_transmission_fault.Bit_flip(self.B)
+        self.B = self.Common_data_transmission_fault.Sign_flip(self.B)
+        self.B = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.B)
+
         
         # The error for w_bi is within the rungeKutta function
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh, self.r_sat)
         
-        self.w_bo = self.w_bi - np.matmul(self.A, np.array(([0],[self.wo],[0])))
+        self.w_bo = self.w_bi - np.matmul(self.A_ORC_to_SBC, np.array(([0],[self.wo],[0])))
         
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
         
@@ -316,24 +396,31 @@ class Dynamics:
         
         self.update()
         
-        return self.w_bi, self.q, self.A, self.r_EIC, self.sun_in_view
+        return self.w_bi, self.q, self.A_ORC_to_SBC, self.r_EIC, self.sun_in_view
 
     def update(self):
+        """
         self.Orbit_Data["Magnetometer x"].append(self.B[0])
         self.Orbit_Data["Magnetometer z"].append(self.B[1])
         self.Orbit_Data["Magnetometer y"].append(self.B[2])
         self.Orbit_Data["Sun x"].append(self.S_b[0][0])
         self.Orbit_Data["Sun y"].append(self.S_b[1][0])
         self.Orbit_Data["Sun z"].append(self.S_b[2][0])
-        self.Orbit_Data["Earth x"].append(self.r_EIC[0])
-        self.Orbit_Data["Earth y"].append(self.r_EIC[1])
-        self.Orbit_Data["Earth z"].append(self.r_EIC[2])
+        self.Orbit_Data["Earth x"].append(self.r_sat_sbc[0])
+        self.Orbit_Data["Earth y"].append(self.r_sat_sbc[1])
+        self.Orbit_Data["Earth z"].append(self.r_sat_sbc[2])
         self.Orbit_Data["Angular momentum of wheels x"].append(self.angular_momentum[0][0])
         self.Orbit_Data["Angular momentum of wheels y"].append(self.angular_momentum[1][0])
         self.Orbit_Data["Angular momentum of wheels z"].append(self.angular_momentum[2][0])
         self.Orbit_Data["Angular momentum of satellite x"].append(self.w_bi[0][0])
         self.Orbit_Data["Angular momentum of satellite y"].append(self.w_bi[1][0])
         self.Orbit_Data["Angular momentum of satellite z"].append(self.w_bi[2][0])
+        """
+        self.Orbit_Data["Magnetometer"].append(self.B)
+        self.Orbit_Data["Sun"].append(self.S_b[:,0])
+        self.Orbit_Data["Earth"].append(self.r_sat_sbc)
+        self.Orbit_Data["Angular momentum of wheels"].append(self.angular_momentum[:,0])
+        self.Orbit_Data["Angular velocity of satellite"].append(self.w_bi[:,0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)
         if self.sun_in_view == False and (self.fault == "Catastrophic_sun" or self.fault == "Erroneous"):
             self.Orbit_Data["Current fault"].append("None")
@@ -349,17 +436,31 @@ class Dynamics:
             self.Orbit_Data["Current fault binary"].append(0 if self.fault == "None" else 1)
 
 def loop(index, Data, orbit_descriptions):
+    print(SET_PARAMS.Fault_names_values[index])
+
     if SET_PARAMS.Display:
         satellite = view.initializeCube(SET_PARAMS.Dimensions)
         pv = view.ProjectionViewer(1920, 1080, satellite)
-
-    for i in range(1, int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts) + 1)):
+    
+    for j in range(1, int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
         w, q, A, r, sun_in_view = D.rotation()
-        if SET_PARAMS.Display and i%SET_PARAMS.skip == 0:
+        if SET_PARAMS.Display and j%SET_PARAMS.skip == 0:
             pv.run(w, q, A, r, sun_in_view)
-        if i%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/10)) == 0:
-            print("Number of time steps for orbit loop number", index, " = ", "%.2f" % i/int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)))
         
+        if j%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/10)) == 0:
+            print("Number of time steps for orbit loop number", index, " = ", "%.2f" % float(j/int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))))
+
+        if SET_PARAMS.Fault_simulation_mode == 2 and j%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/SET_PARAMS.fixed_orbit_failure)) == 0:
+            D.initiate_purposed_fault(SET_PARAMS.Fault_names_values[index])
+            if SET_PARAMS.Display:
+                pv.fault = D.fault
+
+    if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
+        visualize_data(D.Orbit_Data, D.fault)
+    
+    elif SET_PARAMS.Display == True:
+        pv.save_plot(D.fault)
+
     print("Number of multiple orbits", index)  
     Data[index] = D.Orbit_Data
     orbit_descriptions[index] = D.fault
@@ -377,7 +478,7 @@ if __name__ == "__main__":
     if SET_PARAMS.save_as == ".xlsx":
         Data = []
         orbit_descriptions = []
-        for i in range(16,SET_PARAMS.Number_of_multiple_orbits):
+        for i in range(SET_PARAMS.Number_of_multiple_orbits):
             D = Dynamics(i)
 
             print(SET_PARAMS.Fault_names_values[i+1])
@@ -408,7 +509,7 @@ if __name__ == "__main__":
                 pv.save_plot(D.fault)
 
             Data.append(D.Orbit_Data)
-            orbit_descriptions.append(str(i))
+            orbit_descriptions.append(str(D.fault))
 
         save_as_excel(Data, orbit_descriptions)
     else:
@@ -418,7 +519,7 @@ if __name__ == "__main__":
         Data = manager.dict()
         orbit_descriptions = manager.dict()
 
-        for i in range(1,SET_PARAMS.Number_of_multiple_orbits+1):
+        for i in range(1, SET_PARAMS.Number_of_multiple_orbits+1):
             D = Dynamics(i)
             if SET_PARAMS.Fault_simulation_mode == 2:
                 D.fault = SET_PARAMS.Fault_names_values[i]
