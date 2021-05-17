@@ -156,7 +156,7 @@ class SET_PARAMS:
     # NUMBER OF REPETITIONS FOR ORBITS AND HOW MANY ORBITS PER REPETITION #
     #######################################################################
 
-    Number_of_orbits = 10 # * This value can constantly be changed as well as the number of orbits
+    Number_of_orbits = 2 # * This value can constantly be changed as well as the number of orbits
     Number_of_multiple_orbits = 17
     
     ##########################
@@ -169,7 +169,7 @@ class SET_PARAMS:
     # CSV FILE PARAMETERS #
     #######################
     
-    save_as = ".csv"
+    save_as = ".xlsx"
     load_as = ".csv"
     
     ##################################
@@ -243,14 +243,14 @@ class SET_PARAMS:
 
     #################################################################################################################
     # Fine Sun sensor
-    Fine_sun_sensor_position = np.array(([0, 1, 0])) # x, y, en z 
+    Fine_sun_sensor_position = np.array(([1, 0, 0])) # x, y, en z 
     Fine_sun_sensor_FOV = 180 # Field of view in degrees
     Fine_sun_sensor_angle = Fine_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Fine_sun_noise = 0.0001                    #standard deviation away from where the actual sun is
 
     #################################################################################################################
     # Coarse Sun Sensor
-    Coarse_sun_sensor_position = np.array(([0, -1, 0])) # x, y, en z 
+    Coarse_sun_sensor_position = np.array(([-1, 0, 0])) # x, y, en z 
     Coarse_sun_sensor_FOV = 180 # Field of view in degrees
     Coarse_sun_sensor_angle = Coarse_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Coarse_sun_noise = 0.001 #standard deviation away from where the actual sun is
@@ -336,8 +336,8 @@ class Fault_parameters:
 class Reaction_wheels(Fault_parameters):
     def __init__(self, seed):
         self.angular_wheels = SET_PARAMS.wheel_angular_d_max
-        self.angular_wheels_max = SET_PARAMS.h_ws_max*random_size(minimum = Min_high_speed_percentage, maximum = Max_high_speed_percentage)
-        self.angular_wheels_min = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
+        self.angular_wheels_max = SET_PARAMS.N_ws_max*random_size(minimum = Min_high_speed_percentage, maximum = Max_high_speed_percentage)
+        self.angular_wheels_min = SET_PARAMS.N_ws_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
         self.Fault_rate_per_hour = 2.5e-7 * SET_PARAMS.likelyhood_multiplier
         self.number_of_failures = 3
         self.failures = {
@@ -396,10 +396,12 @@ class Sun_sensor(Fault_parameters):
             0: "Fine",
             1: "Coarse"
         }
-        self.Failed_sensor = self.sensors[self.np_random.randint(0,2)]
+        self.Failed_sensor = self.sensors[self.np_random.randint(0,1)]
 
     def Catastrophic_sun(self, sun_sensor, sensor_type):
         if sensor_type == self.Failed_sensor:
+            if self.failure == "Catastrophic_sun":
+                pass
             return np.zeros(sun_sensor.shape) if self.failure == "Catastrophic_sun" else sun_sensor
         else:
             return sun_sensor
@@ -423,7 +425,10 @@ class Magnetorquers(Fault_parameters):
         self.direction_magnetorquer_failed = self.np_random.randint(0,3)
     
     def Inverted_polarities_magnetorquers(self, magnetic_torquers):
-        # Inverted polarities meand that the magnetic torquers will move in the oppositie direction (thus multiplied by -1)
+        #############################################################
+        # INVERTED POLARITIES MEAND THAT THE MAGNETIC TORQUERS WILL #
+        #  MOVE IN THE OPPOSITIE DIRECTION (THUS MULTIPLIED BY -1)  #
+        #############################################################
         self.magnetic_torquers = magnetic_torquers
         magnetic_torquers = magnetic_torquers[self.direction_magnetorquer_failed]
         self.magnetic_torquers[self.direction_magnetorquer_failed] = -magnetic_torquers if self.failure == "Inverted_polarities_magnetorquers" else magnetic_torquers
