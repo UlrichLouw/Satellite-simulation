@@ -40,7 +40,7 @@ class Sensors:
             return S_EIC, self.in_sun_view 
         else:
             self.in_sun_view = True
-        return S_EIC/np.linalg.norm(S_EIC), self.in_sun_view     #in m
+        return S_EIC, self.in_sun_view     #in m
 
     def magnetometer(self, t):
         latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)

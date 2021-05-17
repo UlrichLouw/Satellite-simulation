@@ -9,9 +9,11 @@ pi = math.pi
 
 class SET_PARAMS:
     # All the parameters specific to the satellite and the mission
-    """
-    Orbit parameters
-    """
+    
+    ####################
+    # ORBIT PARAMETERS #
+    ####################
+    
     eccentricity = 0.000092             # Update eccentricity list
     inclination = 97.4                  # degrees
     Semi_major_axis = 6879.55           # km The distance from the satellite to the earth + the earth radius
@@ -21,6 +23,7 @@ class SET_PARAMS:
     AP = 0                              # argument of perigee
     Re = 6371.2                         # km magnetic reference radius
     Mean_motion = 15.2355000000         # rev/day
+    Mean_motion_per_second = Mean_motion/(3600.0*24.0)
     Mean_anomaly = 29.3                 # degrees
     Argument_of_perigee = 57.4          # in degrees
     omega = Argument_of_perigee
@@ -28,10 +31,12 @@ class SET_PARAMS:
     J_t,fr = jday(2020,2,16,15,30,0)    # current julian date
     epoch = J_t - 2433281.5 + fr
     Drag_term = 0.000194                # Remember to update the list term
-    wo = (Mean_motion/(3600*24)) / (2*pi*Semi_major_axis * 1000) #rad/s
-    """
-    TLE data
-    """
+    wo = Mean_motion_per_second*(2*pi)  # rad/s
+
+    ############
+    # TLE DATA #
+    ############
+        
     # s list
     satellite_number_list = '1 25544U'
     international_list = ' 98067A   '
@@ -56,37 +61,49 @@ class SET_PARAMS:
     mean_motion_list = str("{:8f}".format(Mean_motion)) + '00'
     Epoch_rev_list = '000009'
     t_list = line_and_satellite_number_list + inclination_list + intermediate_list + RAAN_list + intermediate_list_2 + eccentricity_list + perigree_list + intermediate_list_3 + mean_anomaly_list + intermediate_list_4 + mean_motion_list + Epoch_rev_list
-    """
-    Overwrite Jansen vuuren se waardes met sgp4 example
-    """
+    
+    #######################################################
+    # OVERWRITE JANSEN VUUREN SE WAARDES MET SGP4 EXAMPLE #
+    #######################################################
+    
     """
     s_list = '1 25544U 98067A   19343.69339541  .00001764  00000-0  38792-4 0  9991'
     t_list = '2 25544  51.6439 211.2001 0007417  17.6667  85.6398 15.50103472202482'
     """
-    """
-    position parameters
-    """
+    
+    #######################
+    # POSITION PARAMETERS #
+    #######################
+    
     a_G0 = 0        # Angle from the greenwhich
-    """
-    Atmosphere (Aerodynamic)
-    """
+    
+    ############################
+    # ATMOSPHERE (AERODYNAMIC) #
+    ############################
+    
     normal_accommodation = 0.8
     tangential_accommodation = 0.8
     ratio_of_molecular_exit = 0.05
     offset_vector = np.array(([0.01,0.01,0.01]))
-    """
-    Earth effects (geomagnetic)
-    """
+    
+    ###############################
+    # EARTH EFFECTS (GEOMAGNETIC) #
+    ###############################
+    
     k = 10 #order of expansion
     Radius_earth = 6371e3 # in m
     w_earth = 7.2921150e-5 #rad/s
-    """
-    Sun parameters
-    """
+    
+    ##################
+    # SUN PARAMETERS #
+    ##################
+    
     Radius_sun = 696340e3 # in m
-    """
-    Satellite body
-    """
+
+    ##################
+    # SATELLITE BODY #
+    ##################
+
     Mass = 20 #kg
     Dimensions = np.array(([0.3, 0.3, 0.4])) # Lx, Ly, Lz
     Ix = 0.4 #kg.m^2
@@ -94,65 +111,88 @@ class SET_PARAMS:
     Iz = 0.3 #kg.m^2
     Iw = 88.1e-6 #kgm^2 Inertia of the RW-06 wheel
     Surface_area_i = Dimensions[0] * Dimensions[1]
-    """
-    Satellite initial position
-    """
-    quaternion_initial = np.array(([0, 0, 1, 0])) #Quaternion_functions.euler_to_quaternion(0,0,0) #roll, pitch, yaw
+
+    ##############################
+    # SATELLITE INITIAL POSITION #
+    ##############################
+    
+    quaternion_initial = np.array(([0, 0, -1, 0])) #Quaternion_functions.euler_to_quaternion(0,0,0) #roll, pitch, yaw
     wbi = np.array(([0.0],[0.0],[0.0]))
     initial_angular_wheels = np.zeros((3,1))
-    """
-    Max parameters of actuaters
-    """
+    
+    ###############################
+    # MAX PARAMETERS OF ACTUATERS #
+    ###############################
+    
     wheel_angular_d_max = 2.0 #degrees per second (theta derived), angular velocity
     wheel_angular_d_d = 0.133 # degrees per second^2 (rotation speed derived), angular acceleration
-    h_ws_max = 15.7e-3 # Nms
-    N_ws_max = 1.05e-3 #Nm
-    M_magnetic_max = 25e-6 #Nm
-    """
-    Control parameters
-    """
+    h_ws_max = 36.9e-3 # Nms
+    N_ws_max = 10.6e-3 # Nm
+    M_magnetic_max = 25e-6 # Nm
+    
+    ######################
+    # CONTROL PARAMETERS #
+    ######################
+    
     w_ref = np.zeros((3,1)) # desired angular velocity of satellite
     q_ref = np.array(([0, 0, 1, 0])) # initial position of satellite
     time = 1
     Ts = 1 # Time_step
-    wn = 5e-6/Ts
-    Kp = Ts*Ix * 12.5 #2 * wn**2 
-    Kd = Ts*Ix * 125 #2 * wn * 0.707
+    wn = 1
+    Kp = 2 * wn**2 
+    Kd = 2 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
-    """
-    Display parameters
-    """
+    
+    ######################
+    # DISPLAY PARAMETERS #
+    ######################
+    
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
     Display = False # if display is desired or not
     skip = 20  # the number of iterations before display
-    Number_of_orbits = 1
+
+    #######################################################################
+    # NUMBER OF REPETITIONS FOR ORBITS AND HOW MANY ORBITS PER REPETITION #
+    #######################################################################
+
+    Number_of_orbits = 10 # * This value can constantly be changed as well as the number of orbits
     Number_of_multiple_orbits = 17
-    """
-    Visualize measurements
-    """
+    
+    ##########################
+    # VISUALIZE MEASUREMENTS #
+    ##########################
+    
     Visualize = True
-    """
-    CSV file parameters
-    """
-    save_as = ".xlsx"
+    
+    #######################
+    # CSV FILE PARAMETERS #
+    #######################
+    
+    save_as = ".csv"
     load_as = ".csv"
-    """
-    Storage of data for prediction
-    """
+    
+    ##################################
+    # STORAGE OF DATA FOR PREDICTION #
+    ##################################
+        
     data_mode = "_buffer"
     buffer_mode = True
     buffer_size = 20
 
     # File names for the storage of the data attained during the simulation
     filename = "Data_files/Faults" + data_mode
-    """
-    Mode of operation
-    """
+
+    #####################
+    # MODE OF OPERATION #
+    #####################
+
     Mode = "Nominal"  
-    """
-    Fault types and fault parameters
-    """
+    
+    ####################################
+    # FAULT TYPES AND FAULT PARAMETERS #
+    ####################################
+    
     number_of_faults = 17
     Fault_names = {
     "None": 1,
@@ -178,47 +218,56 @@ class SET_PARAMS:
     #Fault_simulation_mode = 0 # Failure is based on specified class failure rate. Multiple failures can occure simultaneously
     Fault_simulation_mode = 2 # A single fault occurs per orbit
     fixed_orbit_failure = 2
-    """
-    For the fault simulation mode 2, the fault names must be the values based on keys
-    """
+
+    
+    #####################################################################################
+    # FOR THE FAULT SIMULATION MODE 2, THE FAULT NAMES MUST BE THE VALUES BASED ON KEYS #
+    #####################################################################################
+    
     Fault_names_values = {value:key for key, value in Fault_names.items()}
-    """
-    Sensor models
-    """
+    
+    #################
+    # SENSOR MODELS #
+    #################
+    
     # Magnetometer
-    Magnetometer_noise = 0.0001         #standard deviation of magnetometer noise in Tesla
+    Magnetometer_noise = 0.001         #standard deviation of magnetometer noise in Tesla
+
+    #################################################################################################################
 
     # Earth sensor
     Earth_sensor_position = np.array(([0, 0, -1])) # x, y, en z
     Earth_sensor_FOV = 60 # Field of view in degrees
     Earth_sensor_angle = Earth_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Earth_noise = 0.0001                  #standard deviation away from where the actual earth is
+    Earth_noise = 0.001                  #standard deviation away from where the actual earth is
 
     #################################################################################################################
     # Fine Sun sensor
     Fine_sun_sensor_position = np.array(([0, 1, 0])) # x, y, en z 
     Fine_sun_sensor_FOV = 180 # Field of view in degrees
     Fine_sun_sensor_angle = Fine_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Fine_sun_noise = 0.00001                    #standard deviation away from where the actual sun is
+    Fine_sun_noise = 0.0001                    #standard deviation away from where the actual sun is
 
     #################################################################################################################
     # Coarse Sun Sensor
     Coarse_sun_sensor_position = np.array(([0, -1, 0])) # x, y, en z 
     Coarse_sun_sensor_FOV = 180 # Field of view in degrees
     Coarse_sun_sensor_angle = Coarse_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Coarse_sun_noise = 0.0001 #standard deviation away from where the actual sun is
+    Coarse_sun_noise = 0.001 #standard deviation away from where the actual sun is
+
+    #################################################################################################################
 
 
-Min_high_noise = 5
-Max_high_noise = 10
+Min_high_noise = 5.0
+Max_high_noise = 10.0
 
 Min_high_speed_percentage = 0.9
-Max_high_speed_percentage = 1
+Max_high_speed_percentage = 1.0
 
-min_inteference = 3
-max_Interference_magnetic = 5
+min_inteference = 3.0
+max_Interference_magnetic = 5.0
 
-Min_low_speed_percentage = 0
+Min_low_speed_percentage = 0.0
 Max_low_speed_percentage = 0.1
 
 def bitflip(x,pos):
@@ -259,6 +308,7 @@ class Fault_parameters:
         gamma = special.gammainc(1/self.Beta, (self.time/self.n)**self.Beta)
         self.Reliability_area = self.n * ((self.time/self.n)*gamma)/(self.Beta*((self.time/self.n)**self.Beta)**(1/self.Beta))
         self.Reliability_area_per_time_step = 0
+        self.first = 1
 
     def Failure_Reliability_area(self, t):
         self.Reliability_area_per_time_step += weibull(t, self.n, self.Beta)*SET_PARAMS.Ts
@@ -296,29 +346,41 @@ class Reaction_wheels(Fault_parameters):
             2: "Catastrophic_RW"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
-        self.direction_wheel_failed = self.np_random.randint(0,3)
-        self.angular_failed_wheel = None
+        self.number = self.np_random.randint(1,4)
+        self.number_of_failed_wheels = []
+        tries = 0
+        while tries < self.number:
+            current = self.np_random.randint(0,3)
+            if not current in self.number_of_failed_wheels:
+                self.number_of_failed_wheels.append(current)
+                tries += 1
+
+        self.number_of_failed_wheels = sorted(self.number_of_failed_wheels)
+        self.angular_failed_wheel = np.zeros((3,1))
 
 
     def Electronics_of_RW_failure(self, angular_wheels):
-        if self.angular_failed_wheel == None:
-            self.angular_failed_wheel = angular_wheels[self.direction_wheel_failed]
-        self.angular_failed_wheel = np.maximum((self.angular_failed_wheel - abs(self.angular_failed_wheel)/10), self.angular_wheels_min) if self.failure == "Electronics_of_RW" else self.angular_failed_wheel
-        angular_wheels[self.direction_wheel_failed] = self.angular_failed_wheel
+        if self.first:
+            self.angular_failed_wheel = angular_wheels[self.number_of_failed_wheels]
+            self.first = 0
+        self.angular_failed_wheel = np.maximum((self.angular_failed_wheel - abs(self.angular_failed_wheel)/10), self.angular_wheels_min*np.ones((self.number,1))) if self.failure == "Electronics_of_RW" else self.angular_failed_wheel
+        angular_wheels[self.number_of_failed_wheels] = self.angular_failed_wheel
         return angular_wheels
 
     def Overheated_RW(self, angular_wheels):
-        if self.angular_failed_wheel == None:
-            self.angular_failed_wheel = angular_wheels[self.direction_wheel_failed]
-        self.angular_failed_wheel = np.maximum((self.angular_failed_wheel - abs(self.angular_failed_wheel)/10), self.angular_wheels_min) if self.failure == "Overheated_RW" else self.angular_failed_wheel
-        angular_wheels[self.direction_wheel_failed] = self.angular_failed_wheel
+        if self.first:
+            self.angular_failed_wheel = angular_wheels[self.number_of_failed_wheels]
+            self.first = 0
+        self.angular_failed_wheel = np.maximum((self.angular_failed_wheel - abs(self.angular_failed_wheel)/10), self.angular_wheels_min*np.ones((self.number,1))) if self.failure == "Overheated_RW" else self.angular_failed_wheel
+        angular_wheels[self.number_of_failed_wheels] = self.angular_failed_wheel
         return angular_wheels
 
     def Catastrophic_RW(self, angular_wheels):
-        if self.angular_failed_wheel == None:
-            self.angular_failed_wheel = angular_wheels[self.direction_wheel_failed]
-        self.angular_failed_wheel = 0 if self.failure == "Catastrophic_RW" else self.angular_failed_wheel
-        angular_wheels[self.direction_wheel_failed] = self.angular_failed_wheel
+        if self.first:
+            self.angular_failed_wheel = angular_wheels[self.number_of_failed_wheels]
+            self.first = 0
+        self.angular_failed_wheel = np.zeros((self.number,1)) if self.failure == "Catastrophic_RW" else self.angular_failed_wheel
+        angular_wheels[self.number_of_failed_wheels] = self.angular_failed_wheel
         return angular_wheels
 
 class Sun_sensor(Fault_parameters):
@@ -382,19 +444,16 @@ class Magnetometers(Fault_parameters):
             1: "Interference_magnetic"
         }
         super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
-        self.direction_magnetometer_failed = self.np_random.randint(0,3)
 
     def Stop_magnetometers(self, magnetometer):
         # All of the magnetometers are zero
         if self.failure == "Stop_magnetometers":
-            magnetometer[self.direction_magnetometer_failed] = 0
+            magnetometer = np.zeros((3,))
 
         return magnetometer
 
     def Interference_magnetic(self, magnetometers):
-        self.magnetometers = magnetometers
-        magnetometers = magnetometers[self.direction_magnetometer_failed]
-        self.magnetometers[self.direction_magnetometer_failed] = magnetometers*random_size(min_inteference, max_Interference_magnetic) if self.failure == "Interference_magnetic" else magnetometers
+        self.magnetometers = magnetometers*random_size(min_inteference, max_Interference_magnetic) if self.failure == "Interference_magnetic" else magnetometers
         return self.magnetometers
     
     def General_sensor_high_noise(self, sensor):

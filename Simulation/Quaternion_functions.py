@@ -24,9 +24,11 @@ def euler_to_quaternion(roll, pitch, yaw):
     return np.array(([qx, qy, qz, qw]))
 
 def quaternion_error(current_quaternion, command_quaternion):
-    # For the control of the ADCS the control system will provide a command quaternion. The difference
-    # between the current quaternion and the command quaternion is required to produce a change in the 
-    # system.
+    ####################################################################################################
+    # FOR THE CONTROL OF THE ADCS THE CONTROL SYSTEM WILL PROVIDE A COMMAND QUATERNION. THE DIFFERENCE #
+    # BETWEEN THE CURRENT QUATERNION AND THE COMMAND QUATERNION IS REQUIRED TO PRODUCE A CHANGE IN THE #
+    #                                             SYSTEM.                                              #
+    ####################################################################################################
 
     qc1, qc2, qc3, qc4 = command_quaternion
     q_c = np.array(([qc4, qc3, -qc2, -qc1],[-qc3, qc4, qc1, -qc2],[qc2, -qc1, qc4, -qc3], [qc1, qc2, qc3, qc4]))

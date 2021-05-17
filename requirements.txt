@@ -14,3 +14,4 @@ cython
 eif
 mpld3
 plotly
+pygame

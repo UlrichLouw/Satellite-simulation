@@ -46,10 +46,13 @@ class Disturbances:
         return N_aero
 
     def static(self, rotation_rate, t):
-        # Static imbalance with one mass a distance r from the centre of the flywheel
-        # m - mass of imbalance in kg
-        # r - distance from centre of flywheel in m
-        Us = 0.0208 * 1e-5 #For the RW-0.06 wheels in kg/m; Us = m*r; Assume all the wheels are equally imbalanced
+        ###############################################################################
+        # STATIC IMBALANCE WITH ONE MASS A DISTANCE R FROM THE CENTRE OF THE FLYWHEEL #
+        #                         M - MASS OF IMBALANCE IN KG                         #
+        #                  R - DISTANCE FROM CENTRE OF FLYWHEEL IN M                  #
+        ###############################################################################
+
+        Us = 2.08e-7 #For the RW-0.06 wheels in kg/m; Us = m*r; Assume all the wheels are equally imbalanced
         omega = rotation_rate #rad/s rotation rate of wheel   
         F_xs = Us * omega[0,0]**2 * np.array(([np.sin(omega[0,0]*t + self.phi_s[0,0]),np.cos(omega[0,0]*t + self.phi_s[0,0]), 0]))
         F_ys = Us * omega[1,0]**2 * np.array(([np.cos(omega[1,0]*t + self.phi_s[1,0]), 0, np.sin(omega[1,0]*t + self.phi_s[1,0])]))
@@ -63,18 +66,21 @@ class Disturbances:
         return N_s
 
     def dynamic(self, rotation_rate, t):
-        Ud = 2.08 * 1e-9        #For the RW-0.06 wheels in kg/m^2; Ud = m*r*d
-        omega = rotation_rate   #rad/s rotation rate of wheel   
+        Ud = 2.08e-9        #For the RW-0.06 wheels in kg/m^2; Ud = m*r*d
+        omega = rotation_rate   #rad/s rotation rate of wheel  
         N_xd = Ud * omega[0,0]**2 * np.array(([np.sin(omega[0,0]*t + self.phi_d[0,0]),np.cos(omega[0,0]*t + self.phi_d[0,0]), 0]))
         N_yd = Ud * omega[1,0]**2 * np.array(([np.cos(omega[1,0]*t + self.phi_d[1,0]), 0, np.sin(omega[1,0]*t + self.phi_d[1,0])]))
         N_zd = Ud * omega[2,0]**2 * np.array(([0, np.sin(omega[2,0]*t + self.phi_d[2,0]), np.cos(omega[2,0]*t + self.phi_d[2,0])]))
         self.phi_d = omega*t + self.phi_d 
+        N_d = N_xd[0] + N_yd[0] + N_zd[0]
         N_d = np.array(([N_xd[0] + N_yd[0] + N_zd[0], N_xd[1] + N_yd[1] + N_zd[1], N_xd[2] + N_yd[2] + N_zd[2]]))
         return N_d
 
     def Wheel_Imbalance(self, rotation_rate, t):
-        # Dynamic imbalance with two masses seperated by 180 degrees and distance, d
-        # d - width of flywheel in m
-        # r - distance from flywheel
-        # m - mass in kg
+        ##############################################################################
+        # DYNAMIC IMBALANCE WITH TWO MASSES SEPERATED BY 180 DEGREES AND DISTANCE, D #
+        #                         D - WIDTH OF FLYWHEEL IN M                         #
+        #                         R - DISTANCE FROM FLYWHEEL                         #
+        #                               M - MASS IN KG                               #
+        ##############################################################################
         return (self.static(rotation_rate, t) + self.dynamic(rotation_rate, t))
