@@ -149,14 +149,14 @@ class SET_PARAMS:
     ######################
     
     faster_than_control = 1.0 # how much faster the satellite will move around the earth in simulation than the control
-    Display = False # if display is desired or not
+    Display = True # if display is desired or not
     skip = 20  # the number of iterations before display
 
     #######################################################################
     # NUMBER OF REPETITIONS FOR ORBITS AND HOW MANY ORBITS PER REPETITION #
     #######################################################################
 
-    Number_of_orbits = 2 # * This value can constantly be changed as well as the number of orbits
+    Number_of_orbits = 10 # * This value can constantly be changed as well as the number of orbits
     Number_of_multiple_orbits = 17
     
     ##########################

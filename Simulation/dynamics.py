@@ -199,11 +199,11 @@ class Dynamics:
 
         angle_difference = Quaternion_functions.rad2deg(np.arccos(np.clip(np.dot(self.r_sat_sbc, SET_PARAMS.Earth_sensor_position),-1,1)))
         if angle_difference < SET_PARAMS.Earth_sensor_angle:
-            self.r_sat = self.Earth_sensor_fault.normal_noise(self.r_sat, SET_PARAMS.Earth_noise)
-            self.r_sat = self.Earth_sensor_fault.General_sensor_high_noise(self.r_sat)
-            self.r_sat = self.Common_data_transmission_fault.Bit_flip(self.r_sat)
-            self.r_sat = self.Common_data_transmission_fault.Sign_flip(self.r_sat)
-            self.r_sat = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.r_sat) 
+            self.r_sat_sbc = self.Earth_sensor_fault.normal_noise(self.r_sat_sbc, SET_PARAMS.Earth_noise)
+            self.r_sat_sbc = self.Earth_sensor_fault.General_sensor_high_noise(self.r_sat_sbc)
+            self.r_sat_sbc = self.Common_data_transmission_fault.Bit_flip(self.r_sat_sbc)
+            self.r_sat_sbc = self.Common_data_transmission_fault.Sign_flip(self.r_sat_sbc)
+            self.r_sat_sbc = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.r_sat_sbc) 
         else:
             self.r_sat_sbc = np.zeros(self.r_sat_sbc.shape)
 
