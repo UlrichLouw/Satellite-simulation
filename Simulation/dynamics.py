@@ -454,6 +454,9 @@ class Dynamics:
             self.RKF.measurement_noise = noise
             self.w_bi = self.RKF.Kalman_update(v_k, self.Nm, self.Nw, self.Ngyro)
         
+
+        self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
+
         self.t += self.dt
         
         self.update()
