@@ -20,6 +20,7 @@ from decimal import Decimal
 import math
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+from Kalman_filter import RKF
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 
@@ -154,6 +155,8 @@ class Dynamics:
         self.faster_than_control = SET_PARAMS.faster_than_control   # If it is required that satellite must move faster around the earth than Ts
         self.control = Controller.Control()         # Controller.py is used for control of satellite    
         self.initiate_fault_parameters()
+        self.RKF = RKF()                            # Rate Kalman_filter
+        self.sensor_noise = np.array(([SET_PARAMS.Earth_noise, SET_PARAMS.Fine_sun_noise]))
         """
         ! self.Orbit_Data = {
         !    "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
@@ -305,7 +308,7 @@ class Dynamics:
         y = w
 
         for _ in range(n):
-            N_gyro = y * (np.matmul(self.Inertia,y) + self.angular_momentum)
+            N_gyro = y * (self.Inertia @ y + self.angular_momentum)
 
             #############################################
             # DISTURBANCE OF A REACTION WHEEL IMBALANCE #
@@ -320,13 +323,17 @@ class Dynamics:
             N_disturbance = Ngg + N_aero + N_rw - N_gyro                
             N_control = N_control_magnetic - N_control_wheel
             N = N_control + N_disturbance
-            k1 = h*((np.matmul(np.linalg.inv(self.Inertia), N))) 
-            k2 = h*((np.matmul(np.linalg.inv(self.Inertia), N)) + 0.5*k1) 
-            k3 = h*((np.matmul(np.linalg.inv(self.Inertia), N)) + 0.5*k2) 
-            k4 = h*((np.matmul(np.linalg.inv(self.Inertia), N)) + 0.5*k3) 
+            k1 = h*((np.linalg.inv(self.Inertia) @ N)) 
+            k2 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k1) 
+            k3 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k2) 
+            k4 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k3) 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
             x0 = x0 + h; 
+
+        self.Ngyro = N_gyro
+        self.Nm = N_control_magnetic
+        self.Nw = N_control_wheel
 
         y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
@@ -341,11 +348,12 @@ class Dynamics:
 
         y = y0
 
+        W = np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0]))
         for _ in range(n):
-            k1 = h*(0.5 * np.matmul(np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0])),y))
-            k2 = h*(0.5 * np.matmul(np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0])),y + 0.5*k1))
-            k3 = h*(0.5 * np.matmul(np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0])),y + 0.5*k2))
-            k4 = h*(0.5 * np.matmul(np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0])),y + 0.5*k3))
+            k1 = h*(0.5 * W @ y)
+            k2 = h*(0.5 * W @ (y + 0.5*k1))
+            k3 = h*(0.5 * W @ (y + 0.5*k2))
+            k4 = h*(0.5 * W @ (y + 0.5*k3))
 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
@@ -399,12 +407,12 @@ class Dynamics:
         ######################################
 
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
-        self.A_EIC_to_SBC = np.matmul(self.A_EIC_to_ORC, self.A_ORC_to_SBC)
+        self.A_EIC_to_SBC = self.A_EIC_to_ORC @ self.A_ORC_to_SBC
         
-        self.r_sat_sbc = np.matmul(self.A_ORC_to_SBC, self.r_sat)
+        self.r_sat_sbc = self.A_ORC_to_SBC @ self.r_sat
         self.r_sat_sbc = self.r_sat_sbc/np.linalg.norm(self.r_sat_sbc)
         
-        self.S_b = np.matmul(self.A_EIC_to_SBC, self.S_EIC)
+        self.S_b = self.A_EIC_to_SBC @ self.S_EIC
         
         if self.sun_in_view:
             self.S_b = self.S_b/np.linalg.norm(self.S_b)
@@ -419,7 +427,7 @@ class Dynamics:
     
         self.Beta = sense.magnetometer(self.t) 
 
-        self.B = np.matmul(self.A_EIC_to_SBC,self.Beta)
+        self.B = self.A_EIC_to_SBC @ self.Beta 
 
         ######################################################
         # IMPLEMENT ERROR OR FAILURE OF SENSOR IF APPLICABLE #
@@ -438,9 +446,13 @@ class Dynamics:
 
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
         
-        self.w_bo = self.w_bi - np.matmul(self.A_ORC_to_SBC, np.array(([0],[self.wo],[0])))
+        self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[self.wo],[0]))
         
-        self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
+        v_k = self.q[0:3]
+
+        for noise in self.sensor_noise:
+            self.RKF.measurement_noise = noise
+            self.w_bi = self.RKF.Kalman_update(v_k, self.Nm, self.Nw, self.Ngyro)
         
         self.t += self.dt
         
@@ -535,7 +547,7 @@ if __name__ == "__main__":
     if SET_PARAMS.save_as == ".xlsx":
         Data = []
         orbit_descriptions = []
-        for i in range(4,SET_PARAMS.Number_of_multiple_orbits):
+        for i in range(SET_PARAMS.Number_of_multiple_orbits):
             D = Dynamics(i)
 
             print(SET_PARAMS.Fault_names_values[i+1])

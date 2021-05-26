@@ -109,8 +109,12 @@ class SET_PARAMS:
     Ix = 0.4 #kg.m^2
     Iy = 0.45 #kg.m^2
     Iz = 0.3 #kg.m^2
+    Inertia = np.diag([Ix, Iy, Iz])
     Iw = 88.1e-6 #kgm^2 Inertia of the RW-06 wheel
     Surface_area_i = Dimensions[0] * Dimensions[1]
+    kgx = 3 * wo**2 * (Iz - Iy)
+    kgy = 3 * wo**2 * (Ix - Iz)
+    kgz = 3 * wo**2 * (Iy - Ix)
 
     ##############################
     # SATELLITE INITIAL POSITION #
@@ -129,6 +133,10 @@ class SET_PARAMS:
     h_ws_max = 36.9e-3 # Nms
     N_ws_max = 10.6e-3 # Nm
     M_magnetic_max = 25e-6 # Nm
+    RW_sigma_x = 14.6
+    RW_sigma_y = 8.8
+    RW_sigma_z = 21.2
+    RW_sigma = np.mean([RW_sigma_x, RW_sigma_y, RW_sigma_y])
     
     ######################
     # CONTROL PARAMETERS #
@@ -143,7 +151,16 @@ class SET_PARAMS:
     Kd = 2 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
+
+    ############################
+    # KALMAN FILTER PARAMETERS #
+    ############################
+    Qw_t = np.diag([RW_sigma_x, RW_sigma_y, RW_sigma_z])
+    Q_k = Ts*Qw_t
     
+    P_k = np.eye(7)
+
+
     ######################
     # DISPLAY PARAMETERS #
     ######################
@@ -246,7 +263,7 @@ class SET_PARAMS:
     Fine_sun_sensor_position = np.array(([1, 0, 0])) # x, y, en z 
     Fine_sun_sensor_FOV = 180 # Field of view in degrees
     Fine_sun_sensor_angle = Fine_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Fine_sun_noise = 0.0001                    #standard deviation away from where the actual sun is
+    Fine_sun_noise = 0.0001                   #standard deviation away from where the actual sun is
 
     #################################################################################################################
     # Coarse Sun Sensor

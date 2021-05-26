@@ -13,10 +13,10 @@ class Disturbances:
 
     def Gravity_gradient_func(self, A):
         zoB = A * np.array(([[0],[0],[1]]))
-        kgx = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Iz - SET_PARAMS.Iy)
-        kgy = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Ix - SET_PARAMS.Iz)
-        kgz = 3 * SET_PARAMS.wo**2 * (SET_PARAMS.Iy - SET_PARAMS.Ix)
-        Ngg = np.array(([kgx*A[1,2]*A[2,2]],[kgy*A[0][2]*A[2][2]],[kgz*A[0,2]*A[1,2]]))
+        kgx = SET_PARAMS.kgx
+        kgy = SET_PARAMS.kgy
+        kgz = SET_PARAMS.kgz
+        Ngg = np.array(([kgx*zoB[1,2]*zoB[2,2]],[kgy*zoB[0][2]*zoB[2][2]],[kgz*zoB[0,2]*zoB[1,2]]))
         
         return Ngg
 
