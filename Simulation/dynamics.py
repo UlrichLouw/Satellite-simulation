@@ -447,12 +447,23 @@ class Dynamics:
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
         
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[self.wo],[0]))
-        
-        v_k = self.q[0:3]
+
+        # Step through both the sensor noise and the sensor measurement
 
         for noise in self.sensor_noise:
             self.RKF.measurement_noise = noise
-            self.w_bi = self.RKF.Kalman_update(v_k, self.Nm, self.Nw, self.Ngyro)
+
+            # vector is the vector of the sensor's measurement
+            # This is used to compare it to the modelled measurement
+            # Consequently, the vector is the ORC modelled vector before
+            # the transformation Matrix is implemented on the vector
+            # Since the transformation matrix takes the modelled and measured into account
+            # Only noise is added to the measurement
+
+            v_ORC_k = self.S_EIC
+            v_measured_k = self.S_b
+   
+            self.w_bi = self.RKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.angular_momentum)
         
 
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)

@@ -16,10 +16,8 @@ def Transformation_matrix(q):
     A[2,2] = -q1**2-q2**2+q3**2+q4**2
     return A
 
-# ! Update Hk, sigma_k, Q_k, R_k
-# ! sigma_k - System perturbation Jacobian matrix page 115
-# ! Hk - Measurement Perturbation Jacobian Matrix page 119
-# ! Qk - System Noise Covariance Matrix page 120
+# ! Update Q_k, R_k
+# ! Qk - System Noise Covariance Matrix page 120. Look at B.27
 # ! Rk - Measurement Noise Covariance Matrix
 
 class EKF():
@@ -41,18 +39,22 @@ class EKF():
         self.wo = SET_PARAMS.wo
 
 
-    def Kalman_update(self, v_k, Nm, Nw, Ngyro):
+    def Kalman_update(self, vmeas_k, v_ORC_k, Nm, Nw, Ngyro, h):
         # Model update
         H_k = Jacobian_H(v_k)
         dw_bi = delta_angular(self.Inertia, Nm, Nw, Ngyro)
         self.w_bi = state_model_update(dw_bi, self.w_bi)
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
+        vmodel_k = self.A_ORC_to_SBC @ v_ORC_k
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[self.wo],[0]))
         omega_k = omega_k_function(self.w_bo)
         kq = kq_function(self.w_bo)
         self.q = state_model_update_quaternion(self.q, kq, omega_k, self.w_bo)
 
-        x_k_update = np.concatenate(self.w_bi, self.q)
+        F_t = F_t_function(h, self.wi, self.Inertia, self.q, omega_k)
+        self.sigma_k = sigma_k_function(F_t)
+
+        x_k_update = np.concatenate((self.w_bi, self.q), axis = 1)
         P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
         # Measurement update
@@ -96,9 +98,16 @@ def system_noise_covariance_matrix(angular_noise):
     return Q_k
 
 
-def Jacobian_H(v_k):
-    vx, vy, vz = v_k
-    H_k = np.array(([[0, Ts*vz, -Ts*vy], [-Ts*vz, 0, Ts*vx], [Ts*vy, -Ts*vx, 0]]))
+def Jacobian_H(q, vmodel_k):
+    q1, q2, q3, q4 = q[:,0]
+
+    zero3 = np.zeros((3,3))
+    h1 = 2 * np.array(([[q1, q2, q3], [q2, -q1, q4], [q3, -q4, -q1]])) @ vmodel_k
+    h2 = 2 * np.array(([[-q2, q1, -q4], [q1, q2, q3], [q4, q3, -q2]])) @ vmodel_k
+    h3 = 2 * np.array(([[-q3, q4, q1],[-q4, -q3, q2],[q1, q2, q3]])) @ vmodel_k
+    h4 = 2 * np.array(([[q4, q3, -q2],[-q3, q4, q1],[q2, -q1, q4]])) @ vmodel_k
+    H_k = np.concatenate((zero3, h1, h2, h3, h4), axis = 1)
+    
     return H_k
 
 
@@ -139,7 +148,12 @@ def e_k_function(vmeas_k, A, vmodel_k):
     return e_k
 
 
-def F_t(self, h, wi, Inertia, q, omega_k):
+def sigma_k_function(F_t):
+    sigma_k = np.eye(7) + Ts*F_t + 0.5 * Ts**2 * F_t ** 2 
+    return sigma_k
+
+
+def F_t_function(h, wi, Inertia, q, omega_k):
     wx, wy, wz = wi[:,0]
     hx, hy, hz = h[:,0]
 
