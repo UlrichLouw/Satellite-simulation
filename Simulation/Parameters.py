@@ -133,9 +133,9 @@ class SET_PARAMS:
     h_ws_max = 36.9e-3 # Nms
     N_ws_max = 10.6e-3 # Nm
     M_magnetic_max = 25e-6 # Nm
-    RW_sigma_x = 14.6
-    RW_sigma_y = 8.8
-    RW_sigma_z = 21.2
+    RW_sigma_x = 14.6/1000
+    RW_sigma_y = 8.8/1000
+    RW_sigma_z = 21.2/1000
     RW_sigma = np.mean([RW_sigma_x, RW_sigma_y, RW_sigma_y])
     
     ######################
@@ -147,7 +147,7 @@ class SET_PARAMS:
     time = 1
     Ts = 1 # Time_step
     wn = 1
-    Kp = 2 * wn**2 
+    Kp = 1 * wn**2 
     Kd = 2 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7

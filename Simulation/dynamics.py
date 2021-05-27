@@ -21,6 +21,7 @@ import math
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from Kalman_filter import RKF
+from Extended_KF import EKF
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 
@@ -156,7 +157,8 @@ class Dynamics:
         self.control = Controller.Control()         # Controller.py is used for control of satellite    
         self.initiate_fault_parameters()
         self.RKF = RKF()                            # Rate Kalman_filter
-        self.sensor_noise = np.array(([SET_PARAMS.Earth_noise, SET_PARAMS.Fine_sun_noise]))
+        self.EKF = EKF()                            # Extended Kalman_filter
+        self.sensor_noise = np.array(([SET_PARAMS.Fine_sun_noise]))
         """
         ! self.Orbit_Data = {
         !    "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
@@ -307,33 +309,35 @@ class Dynamics:
         n = int(np.round((x - x0)/h))
         y = w
 
+        N_gyro = y * (self.Inertia @ y + self.angular_momentum)
+
+        #############################################
+        # DISTURBANCE OF A REACTION WHEEL IMBALANCE #
+        #############################################
+
+        N_rw = np.reshape(self.dist.Wheel_Imbalance(self.angular_momentum/self.Iw, h),(3,1))   
+
+        ######################################################
+        # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
+        ######################################################
+
+        N_disturbance = Ngg + N_aero + N_rw - N_gyro                
+        N_control = N_control_magnetic - N_control_wheel
+        N = N_control + N_disturbance
+
         for _ in range(n):
-            N_gyro = y * (self.Inertia @ y + self.angular_momentum)
-
-            #############################################
-            # DISTURBANCE OF A REACTION WHEEL IMBALANCE #
-            #############################################
-
-            N_rw = np.reshape(self.dist.Wheel_Imbalance(self.angular_momentum/self.Iw, h),(3,1))   
-
-            ######################################################
-            # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
-            ######################################################
-
-            N_disturbance = Ngg + N_aero + N_rw - N_gyro                
-            N_control = N_control_magnetic - N_control_wheel
-            N = N_control + N_disturbance
             k1 = h*((np.linalg.inv(self.Inertia) @ N)) 
             k2 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k1) 
             k3 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k2) 
             k4 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k3) 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
-    
+            
             x0 = x0 + h; 
-
+        
         self.Ngyro = N_gyro
         self.Nm = N_control_magnetic
         self.Nw = N_control_wheel
+        self.Ngg = Ngg
 
         y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
@@ -405,7 +409,6 @@ class Dynamics:
         ######################################
         # DETERMINE THE DCM OF THE SATELLITE #
         ######################################
-
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
         self.A_EIC_to_SBC = self.A_EIC_to_ORC @ self.A_ORC_to_SBC
         
@@ -414,8 +417,9 @@ class Dynamics:
         
         self.S_b = self.A_EIC_to_SBC @ self.S_EIC
         
-        if self.sun_in_view:
-            self.S_b = self.S_b/np.linalg.norm(self.S_b)
+        #if self.sun_in_view:
+            
+        self.S_b = self.S_b/np.linalg.norm(self.S_b)
 
         ##################################################
         # DETERMINE WHETHER THE SUN AND THE EARTH SENSOR #
@@ -443,10 +447,11 @@ class Dynamics:
         ########################################################
         # THE ERROR FOR W_BI IS WITHIN THE RUNGEKUTTA FUNCTION #
         ########################################################
-
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
         
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[self.wo],[0]))
+
+        self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
 
         # Step through both the sensor noise and the sensor measurement
 
@@ -460,15 +465,16 @@ class Dynamics:
             # Since the transformation matrix takes the modelled and measured into account
             # Only noise is added to the measurement
 
-            v_ORC_k = self.S_EIC
-            v_measured_k = self.S_b
-   
-            self.w_bi = self.RKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.angular_momentum)
-        
-
-        self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
+            v_ORC_k = np.reshape((self.A_EIC_to_ORC @ (np.asarray(r_EIC)/np.linalg.norm(np.asarray(r_EIC)))), (3,1))
+            v_measured_k = np.reshape(self.r_sat_sbc, (3,1))
+            x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.angular_momentum)
+            self.q = x[3:]
+            self.w_bi = x[:3]
 
         self.t += self.dt
+
+        if self.t == 300:
+            print("stop")
         
         self.update()
         
