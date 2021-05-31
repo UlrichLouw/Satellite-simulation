@@ -133,9 +133,9 @@ class SET_PARAMS:
     h_ws_max = 36.9e-3 # Nms
     N_ws_max = 10.6e-3 # Nm
     M_magnetic_max = 25e-6 # Nm
-    RW_sigma_x = 14.6/1000
-    RW_sigma_y = 8.8/1000
-    RW_sigma_z = 21.2/1000
+    RW_sigma_x = 14.6/10
+    RW_sigma_y = 8.8/10
+    RW_sigma_z = 21.2/10
     RW_sigma = np.mean([RW_sigma_x, RW_sigma_y, RW_sigma_y])
     
     ######################
@@ -148,7 +148,7 @@ class SET_PARAMS:
     Ts = 1 # Time_step
     wn = 1
     Kp = 0.15 * wn**2 
-    Kd = 2 * wn * 0.707
+    Kd = 3 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
 
@@ -260,7 +260,7 @@ class SET_PARAMS:
     Earth_sensor_position = np.array(([0, 0, -1])) # x, y, en z
     Earth_sensor_FOV = 180 # Field of view in degrees
     Earth_sensor_angle = Earth_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Earth_noise = 0.1                  #standard deviation away from where the actual earth is
+    Earth_noise = 0.01                  #standard deviation away from where the actual earth is
 
     #################################################################################################################
     # Fine Sun sensor

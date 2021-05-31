@@ -160,7 +160,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         #self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor","Sun_Sensor","Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
         """
         ! self.Orbit_Data = {
         !    "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
@@ -464,7 +464,7 @@ class Dynamics:
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
 
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
-        q = self.q
+
         ########################################
         # DETERMINE THE ACTUAL POSITION OF THE #
         # SATELLITE FROM THE EARTH AND THE SUN #
