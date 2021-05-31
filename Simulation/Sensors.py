@@ -47,7 +47,7 @@ class Sensors:
         B = self.earth.scalar_potential_function(latitude, longitude, altitude)
         B += np.random.normal(0,np.linalg.norm(B)*SET_PARAMS.Magnetometer_noise,B.shape)
 
-        return B/np.linalg.norm(B)
+        return B
 
     def satellite_vector(self, t):
         e, r_sat, v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr + t/86400)
@@ -61,4 +61,4 @@ class Sensors:
         self.v_sat = np.matmul(self.A_EIC_to_ORC, self.v_sat_EIC)
         self.r_sat_EIC = self.r_sat_EIC*1000
         self.v_sat_EIC = self.v_sat_EIC*1000
-        return self.r_sat/np.linalg.norm(self.r_sat), self.v_sat/np.linalg.norm(self.v_sat), self.A_EIC_to_ORC, r_sat
+        return self.r_sat, self.v_sat/np.linalg.norm(self.v_sat), self.A_EIC_to_ORC, r_sat

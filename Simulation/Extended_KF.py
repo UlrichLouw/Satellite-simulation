@@ -1,5 +1,6 @@
 import numpy as np
 from Parameters import SET_PARAMS
+
 Ts = SET_PARAMS.Ts
 
 def Transformation_matrix(q):
@@ -24,9 +25,9 @@ class EKF():
     def __init__(self):
         self.angular_noise = SET_PARAMS.RW_sigma
 
-        self.measurement_noise =  0.002
+        self.measurement_noise =  0.01
 
-        self.P_k = np.eye(7)
+        self.P_k = SET_PARAMS.P_k
 
         self.sigma_k = np.eye(7)
 
@@ -41,31 +42,50 @@ class EKF():
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
         self.wo = SET_PARAMS.wo
+        self.angular_momentum = SET_PARAMS.initial_angular_wheels
+        self.dt = SET_PARAMS.Ts
+        self.dh = self.dt/10
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, h):
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
         # Model update
-        dw_bi = delta_angular(self.Inertia, Nm, Nw, Ngyro, Ngg)
-        self.w_bi = state_model_update(dw_bi, self.w_bi)
+        #dw_bi = delta_angular(self.Inertia, Nm, Nw, Ngyro, Ngg)
+        #self.w_bi = state_model_update(dw_bi, self.w_bi)
+        self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
+        if np.isnan(self.q).any():
+            print("Break")
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
-        self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[self.wo],[0]))
+        self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
+        #vmodel_k = self.A_ORC_to_SBC @ vmodel_k
+        #vmodel_k = vmodel_k/np.linalg.norm(vmodel_k)
         omega_k = omega_k_function(self.w_bo)
-        kq, w_bo_norm = kq_function(self.w_bo)
-        self.q = state_model_update_quaternion(self.q, kq, omega_k, w_bo_norm)
+        #kq, w_bo_norm = kq_function(self.w_bo)
+        #self.q = state_model_update_quaternion(self.q, kq, omega_k, w_bo_norm)
+        self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
 
-        H_k = Jacobian_H(self.q, vmodel_k)
-        F_t, TL, TR, BL, BR = F_t_function(h, self.w_bi, self.Inertia, self.q, omega_k, self.A_ORC_to_SBC)
+        F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.Inertia, self.q, omega_k, self.A_ORC_to_SBC)
         T11, T12, T21, T22 = TL, TR, BL, BR
         self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
         self.sigma_k = sigma_k_function(F_t)
 
         x_k_update = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+
+        # Use the updated state vector
+        self.q = x_k_update[3:,0]
+        self.q = self.q/np.linalg.norm(self.q)
+        H_k = Jacobian_H(self.q, vmodel_k)
+        self.A_ORC_to_SBC = Transformation_matrix(self.q)
         P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
         # Measurement update
         e_k = e_k_function(vmeas_k, self.A_ORC_to_SBC, vmodel_k)
+        if np.linalg.det(H_k @ P_k_update @ H_k.T + self.R_k) == 0:
+            print("break")
+
         K_k = Jacobian_K(P_k_update, H_k, self.R_k)
-        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update, self.R_k)
+
+        if np.isnan(K_k).any():
+            print("Break")
         self.x_k = state_measurement_update(x_k_update, K_k, e_k)
 
         # Normalize the quaternion matrix
@@ -74,6 +94,12 @@ class EKF():
         self.q = self.q/np.linalg.norm(self.q)
         self.x_k[3:] = self.q
         self.x_k[:3] = self.wbi
+        if np.isnan(self.x_k).any():
+            print("Break")
+
+        self.q = self.q[:,0]
+        H_k = Jacobian_H(self.q, vmodel_k)
+        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update, self.R_k)
 
         return self.x_k
 
@@ -149,14 +175,12 @@ def state_covariance_matrix(Q_k, P_k, sigma_k):
 
 
 def Jacobian_K(P_k, H_k, R_k):
-    temp = H_k @ P_k @ H_k.T + R_k
-    t = np.linalg.det(temp)
     K_k = P_k @ H_k.T @ np.linalg.inv(H_k @ P_k @ H_k.T + R_k)
     return K_k
 
 
 def update_state_covariance_matrix(K_k, H_k, P_k, R_k):
-    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ (np.eye(7) - K_k @ H_k) + K_k @ R_k @ K_k.T
+    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ (np.eye(7) - K_k @ H_k).T + K_k @ R_k @ K_k.T
     return P_k
 
 
@@ -166,13 +190,14 @@ def state_measurement_update(x_k, K_k, e_k):
 
 
 def e_k_function(vmeas_k, A, vmodel_k):
-    e_k = vmeas_k - A @ vmodel_k
-    e_k = np.zeros(e_k.shape)
+    vmodel_k = A @ vmodel_k
+    vmodel_k = vmodel_k/np.linalg.norm(vmodel_k)
+    e_k = vmeas_k - vmodel_k
     return e_k
 
 
 def sigma_k_function(F_t):
-    sigma_k = np.eye(7) + Ts*F_t + 0.5 * Ts**2 * F_t ** 2 
+    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * F_t ** 2 )
     return sigma_k
 
 
@@ -202,7 +227,9 @@ def F_t_function(h, wi, Inertia, q, omega_k, A):
     kgy = SET_PARAMS.kgy
     kgz = SET_PARAMS.kgz
     
-    K = np.array(([[2*kgx, 0, 0],[0 , 2*kgy, 0], [0 , 0 , 2*kgz]]))
+    K = np.array(([[2*kgx, 0, 0],
+                    [0 , 2*kgy, 0], 
+                    [0 , 0 , 2*kgz]]))
 
     q1, q2, q3, q4 = q
 
@@ -224,7 +251,10 @@ def F_t_function(h, wi, Inertia, q, omega_k, A):
     
     BL = 0.5 * np.array(([[q4, -q3, q2],[q3, q4, -q1],[-q2, q1, q4],[-q1, -q2, -q3]]))
 
-    BR = 0.5 * omega_k + SET_PARAMS.wo * np.array(([[q1*q3, q1*q4, 1 - q1**2, -q1*q2],[q2*q3, q2*q4, -q1*q2, 1-q2**2],[-(1-q3**2), q3*q4, -q1*q3, -q2*q3],[q3*q4, -(1-q4**2), -q1*q4, -q2*q4]]))
+    BR = 0.5 * omega_k + SET_PARAMS.wo * np.array(([[q1*q3, q1*q4, 1 - q1**2, -q1*q2],
+                                                    [q2*q3, q2*q4, -q1*q2, 1-q2**2],
+                                                    [-(1-q3**2), q3*q4, -q1*q3, -q2*q3],
+                                                    [q3*q4, -(1-q4**2), -q1*q4, -q2*q4]]))
 
     T = np.concatenate((TL, TR), axis = 1)
 
@@ -232,6 +262,80 @@ def F_t_function(h, wi, Inertia, q, omega_k, A):
 
     Ft = np.concatenate((T, B))
     return Ft, TL, TR, BL, BR
+
+def rungeKutta_h(x0, angular, x, h, N_control):
+    angular_momentum_derived = N_control
+    n = int(np.round((x - x0)/h))
+
+    y = angular
+    for _ in range(n):
+        k1 = h*(angular_momentum_derived) 
+        k2 = h*((angular_momentum_derived) + 0.5*k1) 
+        k3 = h*((angular_momentum_derived) + 0.5*k2) 
+        k4 = h*((angular_momentum_derived) + 0.5*k3) 
+
+        y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
+
+        x0 = x0 + h; 
+    
+    return y
+########################################################################################
+# FUNCTION TO CALCULATE THE SATELLITE ANGULAR VELOCITY BASED ON THE DERIVATIVE THEREOF #
+########################################################################################
+def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):      
+    ######################################################
+    # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
+    ######################################################
+
+    angular_momentum = np.clip(rungeKutta_h(x0, angular_momentum, x, h, Nw), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+
+    n = int(np.round((x - x0)/h))
+    y = w
+
+    ######################################################
+    # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
+    ######################################################
+
+    N_disturbance = Ngg              
+    N_control = Nm- Nw
+    N = N_control + N_disturbance
+
+    for _ in range(n):
+        k1 = h*((np.linalg.inv(Inertia) @ N)) 
+        k2 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k1) 
+        k3 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k2) 
+        k4 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k3) 
+        y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
+        
+        x0 = x0 + h; 
+
+    y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
+
+    return y, angular_momentum
+
+###########################################################################################
+# FUNCTION TO CALCULATE THE SATELLITE QUATERNION POSITION BASED ON THE DERIVATIVE THEREOF #
+###########################################################################################
+def rungeKutta_q(w_bo, x0, y0, x, h):      
+    wx, wy, wz = w_bo[:,0]
+    n = int(np.round((x - x0)/h))
+
+    y = y0
+
+    W = np.array(([0, wz, -wy, wx], [-wz, 0, wx, wy], [wy, -wx, 0, wz], [-wx, -wy, -wz, 0]))
+    for _ in range(n):
+        k1 = h*(0.5 * W @ y)
+        k2 = h*(0.5 * W @ (y + 0.5*k1))
+        k3 = h*(0.5 * W @ (y + 0.5*k2))
+        k4 = h*(0.5 * W @ (y + 0.5*k3))
+
+        y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
+
+        x0 = x0 + h; 
+    
+    y = y/np.linalg.norm(y)
+
+    return y
 
 if __name__ == "__main__":
     rkf = EKF()

@@ -1,0 +1,3 @@
+**/__pycache__/
+Fault_prediction/__pycache__/
+Simulation/__pycache__/

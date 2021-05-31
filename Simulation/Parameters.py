@@ -147,7 +147,7 @@ class SET_PARAMS:
     time = 1
     Ts = 1 # Time_step
     wn = 1
-    Kp = 1 * wn**2 
+    Kp = 0.15 * wn**2 
     Kd = 2 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
@@ -246,7 +246,11 @@ class SET_PARAMS:
     #################
     # SENSOR MODELS #
     #################
-    
+    # Star trackere
+    star_tracker_vector = np.array([1.0,1.0,1.0])
+    star_tracker_vector = star_tracker_vector/np.linalg.norm(star_tracker_vector)
+    star_tracker_noise = 0.0001
+
     # Magnetometer
     Magnetometer_noise = 0.001         #standard deviation of magnetometer noise in Tesla
 
@@ -254,23 +258,23 @@ class SET_PARAMS:
 
     # Earth sensor
     Earth_sensor_position = np.array(([0, 0, -1])) # x, y, en z
-    Earth_sensor_FOV = 60 # Field of view in degrees
+    Earth_sensor_FOV = 180 # Field of view in degrees
     Earth_sensor_angle = Earth_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Earth_noise = 0.001                  #standard deviation away from where the actual earth is
+    Earth_noise = 0.1                  #standard deviation away from where the actual earth is
 
     #################################################################################################################
     # Fine Sun sensor
     Fine_sun_sensor_position = np.array(([1, 0, 0])) # x, y, en z 
     Fine_sun_sensor_FOV = 180 # Field of view in degrees
     Fine_sun_sensor_angle = Fine_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Fine_sun_noise = 0.0001                   #standard deviation away from where the actual sun is
+    Fine_sun_noise = 0.001                   #standard deviation away from where the actual sun is
 
     #################################################################################################################
     # Coarse Sun Sensor
     Coarse_sun_sensor_position = np.array(([-1, 0, 0])) # x, y, en z 
     Coarse_sun_sensor_FOV = 180 # Field of view in degrees
     Coarse_sun_sensor_angle = Coarse_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
-    Coarse_sun_noise = 0.001 #standard deviation away from where the actual sun is
+    Coarse_sun_noise = 0.01 #standard deviation away from where the actual sun is
 
     #################################################################################################################
 

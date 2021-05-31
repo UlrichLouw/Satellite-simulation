@@ -13,7 +13,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from pathlib import Path
 
-zoom_out_factor = 10
+zoom_out_factor = 3
 
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
