@@ -1,5 +1,6 @@
 import numpy as np
 from Parameters import SET_PARAMS
+import time
 
 Ts = SET_PARAMS.Ts
 
@@ -25,7 +26,7 @@ class EKF():
     def __init__(self):
         self.angular_noise = SET_PARAMS.RW_sigma
 
-        self.measurement_noise =  0.01
+        self.measurement_noise =  0.1
 
         self.P_k = SET_PARAMS.P_k
 
@@ -40,49 +41,58 @@ class EKF():
         self.Inertia = SET_PARAMS.Inertia
 
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
+
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
+
         self.wo = SET_PARAMS.wo
+        self.wo = 0
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
         self.dt = SET_PARAMS.Ts
         self.dh = self.dt/10
+        self.first = True
 
 
     def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
         # Model update
-        #dw_bi = delta_angular(self.Inertia, Nm, Nw, Ngyro, Ngg)
-        #self.w_bi = state_model_update(dw_bi, self.w_bi)
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
+        self.w_bi = np.ones((3,1))
+
         if np.isnan(self.q).any():
             print("Break")
+        
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
-        #vmodel_k = self.A_ORC_to_SBC @ vmodel_k
-        #vmodel_k = vmodel_k/np.linalg.norm(vmodel_k)
+
         omega_k = omega_k_function(self.w_bo)
-        #kq, w_bo_norm = kq_function(self.w_bo)
-        #self.q = state_model_update_quaternion(self.q, kq, omega_k, w_bo_norm)
+
         self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
+        self.q = self.q/np.linalg.norm(self.q)
 
         F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.Inertia, self.q, omega_k, self.A_ORC_to_SBC)
         T11, T12, T21, T22 = TL, TR, BL, BR
+
         self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
+
         self.sigma_k = sigma_k_function(F_t)
 
         x_k_update = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
 
-        # Use the updated state vector
-        self.q = x_k_update[3:,0]
-        self.q = self.q/np.linalg.norm(self.q)
+        # Use the updated state vector       
         H_k = Jacobian_H(self.q, vmodel_k)
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
+
         P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
         # Measurement update
         e_k = e_k_function(vmeas_k, self.A_ORC_to_SBC, vmodel_k)
+
         if np.linalg.det(H_k @ P_k_update @ H_k.T + self.R_k) == 0:
             print("break")
 
-        K_k = Jacobian_K(P_k_update, H_k, self.R_k)
+        if self.first:
+            K_k = Jacobian_K(P_k_update, H_k, self.R_k)
+            self.K_k = K_k
+        K_k = self.K_k
 
         if np.isnan(K_k).any():
             print("Break")
@@ -98,17 +108,19 @@ class EKF():
             print("Break")
 
         self.q = self.q[:,0]
-        H_k = Jacobian_H(self.q, vmodel_k)
+        H_k = Jacobian_H(self.q, vmodel_k) 
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update, self.R_k)
+        print(self.P_k)
 
+        self.first = False
         return self.x_k
 
 
 def system_noise_covariance_matrix_discrete(T11, T12, T21, T22, Q_wt):
     TL = Ts*Q_wt
-    TR = 0.5 * Ts**2 * (Q_wt @ T21.T)
-    BL = 0.5 * Ts**2 * (T21 @ Q_wt)
-    BR = (1/3) * (Ts^3) * (T21 @ Q_wt @ T21.T)
+    TR = 0.5 * (Ts**2) * (Q_wt @ T21.T)
+    BL = 0.5 * (Ts**2) * (T21 @ Q_wt)
+    BR = (1/3) * (Ts**3) * (T21 @ Q_wt @ T21.T)
     T = np.concatenate((TL, TR), axis = 1)
 
     B = np.concatenate((BL, BR), axis = 1)
@@ -169,18 +181,17 @@ def state_model_update_quaternion(q, kq, sigma_k, w_ob):
     return ((np.cos(kq) * np.eye(4) + (1/w_ob)*np.sin(kq)*sigma_k) @ q).flatten()
 
 
+def Jacobian_K(P_k, H_k, R_k):
+    K_k = P_k @ H_k.T @ np.linalg.inv(H_k @ P_k @ H_k.T + R_k)
+    return K_k
+
 def state_covariance_matrix(Q_k, P_k, sigma_k):
     P_k = sigma_k @ P_k @ sigma_k.T + Q_k
     return P_k
 
 
-def Jacobian_K(P_k, H_k, R_k):
-    K_k = P_k @ H_k.T @ np.linalg.inv(H_k @ P_k @ H_k.T + R_k)
-    return K_k
-
-
 def update_state_covariance_matrix(K_k, H_k, P_k, R_k):
-    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ (np.eye(7) - K_k @ H_k).T + K_k @ R_k @ K_k.T
+    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ np.linalg.inv(np.eye(7) - K_k @ H_k) + K_k @ R_k @ K_k.T
     return P_k
 
 
@@ -197,7 +208,7 @@ def e_k_function(vmeas_k, A, vmodel_k):
 
 
 def sigma_k_function(F_t):
-    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * F_t ** 2 )
+    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * np.linalg.matrix_power(F_t, 2))
     return sigma_k
 
 

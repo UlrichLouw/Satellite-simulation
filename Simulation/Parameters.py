@@ -147,7 +147,7 @@ class SET_PARAMS:
     time = 1
     Ts = 1 # Time_step
     wn = 1
-    Kp = 0.15 * wn**2 
+    Kp = 0.22 * wn**2 
     Kd = 3 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
@@ -159,6 +159,7 @@ class SET_PARAMS:
     Q_k = Ts*Qw_t
     
     P_k = np.eye(7)
+
 
 
     ######################

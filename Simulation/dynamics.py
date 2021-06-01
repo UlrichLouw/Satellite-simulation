@@ -449,6 +449,7 @@ class Dynamics:
         # Model star tracker vector as measured
         self.star_tracker_vector_measured = self.A_ORC_to_SBC @ self.star_tracker_vector #self.Star_tracker_fault.normal_noise(self.A_ORC_to_SBC @ self.star_tracker_vector,SET_PARAMS.star_tracker_noise)
         self.star_tracker_vector_measured = self.star_tracker_vector_measured/np.linalg.norm(self.star_tracker_vector_measured)
+        self.star_tracker_vector_measured = self.star_tracker_vector
 
         self.sensor_vectors = {
         "Sun_Sensor": {"measured": self.S_b, "modelled": self.S_ORC, "noise": self.sun_noise}, 
@@ -483,12 +484,16 @@ class Dynamics:
             v_ORC_k = np.reshape(v["modelled"],(3,1))
             v_measured_k = np.reshape(v["measured"],(3,1))
             self.EKF.measurement_noise = v["noise"]
+            self.Nm = np.zeros(self.Nm.shape)
+            self.Nw = np.zeros(self.Nw.shape)
+            self.Ngyro = np.zeros(self.Ngyro.shape)
+            self.Ngg = np.zeros(self.Ngg.shape)
             
             if not (v_ORC_k == 0.0).all():
                 # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
                 x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
-                self.q = x[3:]
-                self.w_bi = x[:3]
+                #self.q = x[3:]
+                #self.w_bi = x[:3]
         
         #print(np.max(self.q - q))
         self.t += self.dt
