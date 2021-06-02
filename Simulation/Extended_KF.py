@@ -43,13 +43,13 @@ class EKF():
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
-
+        
+        self.Q_k = np.diag([0.1, 0.1, 0.1, 0.01, 0.01, 0.01, 0.01]) ** 2
+        
         self.wo = SET_PARAMS.wo
-        self.wo = 0
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
         self.dt = SET_PARAMS.Ts
         self.dh = self.dt/10
-        self.first = True
 
 
     def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
@@ -71,7 +71,7 @@ class EKF():
         F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.Inertia, self.q, omega_k, self.A_ORC_to_SBC)
         T11, T12, T21, T22 = TL, TR, BL, BR
 
-        self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
+        #self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
 
         self.sigma_k = sigma_k_function(F_t)
 
@@ -89,10 +89,7 @@ class EKF():
         if np.linalg.det(H_k @ P_k_update @ H_k.T + self.R_k) == 0:
             print("break")
 
-        if self.first:
-            K_k = Jacobian_K(P_k_update, H_k, self.R_k)
-            self.K_k = K_k
-        K_k = self.K_k
+        K_k = Jacobian_K(P_k_update, H_k, self.R_k)
 
         if np.isnan(K_k).any():
             print("Break")
@@ -112,7 +109,6 @@ class EKF():
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update, self.R_k)
         print(self.P_k)
 
-        self.first = False
         return self.x_k
 
 

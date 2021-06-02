@@ -160,8 +160,6 @@ class SET_PARAMS:
     
     P_k = np.eye(7)
 
-
-
     ######################
     # DISPLAY PARAMETERS #
     ######################
