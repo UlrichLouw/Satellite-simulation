@@ -1,5 +1,5 @@
 import numpy as np
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
 import time
 
 Ts = SET_PARAMS.Ts
@@ -43,7 +43,7 @@ class EKF():
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
-        
+        self.R_k = np.eye(3)
         self.Q_k = np.diag([0.1, 0.1, 0.1, 0.01, 0.01, 0.01, 0.01]) ** 2
         
         self.wo = SET_PARAMS.wo
@@ -55,61 +55,72 @@ class EKF():
     def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
         # Model update
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
-        self.w_bi = np.ones((3,1))
 
+        # Prints error if nan in self.q
         if np.isnan(self.q).any():
-            print("Break")
+            print("nan Value in Quaternion matrix")
         
+        # Calculates the ORC to SBC transformation_matrix
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
+
+        # Calculates the angular velocity for the satelite in ORC frame
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
 
+        # Provides the matrix that is used for multiple calculations from self.w_bo
         omega_k = omega_k_function(self.w_bo)
 
+        # The updated estimation of the quaternion matrix (already normalized)
         self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
-        self.q = self.q/np.linalg.norm(self.q)
 
-        F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.Inertia, self.q, omega_k, self.A_ORC_to_SBC)
+        # After both the quaternions and the angular velocity 
+        # is calculated, the state vector can be calculated
+        x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+
+        # The continuous system perturbation (Jacobian matrix F_t)
+        F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.q, omega_k, self.A_ORC_to_SBC)
         T11, T12, T21, T22 = TL, TR, BL, BR
 
-        #self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
-
+        # The discrete system perturbation
         self.sigma_k = sigma_k_function(F_t)
 
-        x_k_update = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+        # Calculating the system noise covariance matrix. This matrix 
+        # can either be fixed at initiation or calculated based on the current F_t and 
+        # the noise of the angular velocity (self.Q_wt)
+        self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
 
-        # Use the updated state vector       
+        # Calculate the measurement perturbation matrix from the 
+        # estimated state vector (Jacobian matrix H_k)   
         H_k = Jacobian_H(self.q, vmodel_k)
+
+        # Recalculate the transformation matrix based on the updated quaternion matrix
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
 
-        P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
+        # Calculate the estimated state covariance matrix 
+        P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
-        # Measurement update
+        # Calculate the difference between the modelled and measured vector
         e_k = e_k_function(vmeas_k, self.A_ORC_to_SBC, vmodel_k)
-
-        if np.linalg.det(H_k @ P_k_update @ H_k.T + self.R_k) == 0:
+        if np.linalg.det(H_k @ P_k_estimated @ H_k.T + self.R_k) == 0:
             print("break")
 
-        K_k = Jacobian_K(P_k_update, H_k, self.R_k)
-
+        # Calculate the gain matrix K_k
+        K_k = Jacobian_K(P_k_estimated, H_k, self.R_k)
         if np.isnan(K_k).any():
             print("Break")
-        self.x_k = state_measurement_update(x_k_update, K_k, e_k)
+        
+        self.x_k = state_measurement_update(x_k_estimated, K_k, e_k)
 
         # Normalize the quaternion matrix
         self.q = self.x_k[3:]
-        self.wbi = np.clip(self.x_k[:3], -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
         self.q = self.q/np.linalg.norm(self.q)
         self.x_k[3:] = self.q
-        self.x_k[:3] = self.wbi
+        self.q = self.q[:,0]
+
+        # If any value within the state vector is equal to nan
         if np.isnan(self.x_k).any():
             print("Break")
 
-        self.q = self.q[:,0]
-        H_k = Jacobian_H(self.q, vmodel_k) 
-        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update, self.R_k)
-        print(self.P_k)
-
-        return self.x_k
+        # Calculate the measurement perturbatestimated 
 
 
 def system_noise_covariance_matrix_discrete(T11, T12, T21, T22, Q_wt):
@@ -123,6 +134,7 @@ def system_noise_covariance_matrix_discrete(T11, T12, T21, T22, Q_wt):
 
     Q_k = np.concatenate((T, B))
     return Q_k
+
 
 def omega_k_function(w_bo):
     wx, wy, wz = w_bo[:,0]
@@ -181,6 +193,7 @@ def Jacobian_K(P_k, H_k, R_k):
     K_k = P_k @ H_k.T @ np.linalg.inv(H_k @ P_k @ H_k.T + R_k)
     return K_k
 
+
 def state_covariance_matrix(Q_k, P_k, sigma_k):
     P_k = sigma_k @ P_k @ sigma_k.T + Q_k
     return P_k
@@ -204,11 +217,11 @@ def e_k_function(vmeas_k, A, vmodel_k):
 
 
 def sigma_k_function(F_t):
-    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * np.linalg.matrix_power(F_t, 2))
+    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * np.linalg.matrix_power(F_t, 2)) #+ (1/3 * Ts**3 * np.linalg.matrix_power(F_t,3))
     return sigma_k
 
 
-def F_t_function(h, wi, Inertia, q, omega_k, A):
+def F_t_function(h, wi, q, omega_k, A):
     wx, wy, wz = wi[:,0]
     hx, hy, hz = h[:,0]
 
@@ -286,10 +299,13 @@ def rungeKutta_h(x0, angular, x, h, N_control):
         x0 = x0 + h; 
     
     return y
+
 ########################################################################################
 # FUNCTION TO CALCULATE THE SATELLITE ANGULAR VELOCITY BASED ON THE DERIVATIVE THEREOF #
 ########################################################################################
-def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):      
+
+def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):  
+
     ######################################################
     # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
     ######################################################
@@ -316,13 +332,12 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
         
         x0 = x0 + h; 
 
-    y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
-
     return y, angular_momentum
 
 ###########################################################################################
 # FUNCTION TO CALCULATE THE SATELLITE QUATERNION POSITION BASED ON THE DERIVATIVE THEREOF #
 ###########################################################################################
+
 def rungeKutta_q(w_bo, x0, y0, x, h):      
     wx, wy, wz = w_bo[:,0]
     n = int(np.round((x - x0)/h))
@@ -351,5 +366,11 @@ if __name__ == "__main__":
     Nw = np.array(([0.1, 0.1, -0.1])).T
     Ngyro = np.array(([-0.3, 0.15, 0])).T
     Ngg = np.array(([-0.3, 0.15, 0])).T
+    A = np.array(([[-1.0, 0.0, 0.0], [0, -1., 0.0], [0., 0., 1.]]))
+    vmodel_k = SET_PARAMS.star_tracker_vector
+    vmodel_k = np.reshape(vmodel_k,(3,1))
+    vmeas_k = A @ vmodel_k
+    vmeas_k = vmeas_k/np.linalg.norm(vmeas_k)
+    dt = 1
     for i in range(100):
-        rkf.Kalman_update(v_k, Nm, Nw, Ngyro, Ngg)
+        rkf.Kalman_update(vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt)

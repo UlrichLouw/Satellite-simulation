@@ -1,5 +1,5 @@
 import numpy as np
-import Quaternion_to_euler as quat
+import Simulation.Quaternion_to_euler as quat
 
 # Node stores each point of the block
 class Node:

@@ -1,7 +1,7 @@
 import numpy as np 
 import math
-import Quaternion_functions
-from Parameters import SET_PARAMS
+import Simulation.Quaternion_functions as Quaternion_functions
+from Simulation.Parameters import SET_PARAMS
 
 pi = math.pi
 

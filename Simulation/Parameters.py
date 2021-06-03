@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import Quaternion_functions
+import Simulation.Quaternion_functions
 from sgp4.api import jday
 from struct import *
 from scipy import special
@@ -245,7 +245,7 @@ class SET_PARAMS:
     #################
     # SENSOR MODELS #
     #################
-    # Star trackere
+    # Star tracker
     star_tracker_vector = np.array([1.0,1.0,1.0])
     star_tracker_vector = star_tracker_vector/np.linalg.norm(star_tracker_vector)
     star_tracker_noise = 0.0001

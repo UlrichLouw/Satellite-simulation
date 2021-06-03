@@ -1,7 +1,7 @@
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
 import math
 import numpy as np
-import igrf_utils
+import Simulation.igrf_utils as igrf_utils
 from scipy import interpolate
 
 

@@ -1,6 +1,6 @@
 import numpy as np
-import Earth_model
-from Parameters import SET_PARAMS
+import Simulation.Earth_model as Earth_model
+from Simulation.Parameters import SET_PARAMS
 from sgp4.api import Satrec, WGS72
 from sgp4.api import jday
 from skyfield.api import wgs84, EarthSatellite

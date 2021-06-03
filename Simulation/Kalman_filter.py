@@ -1,5 +1,5 @@
 import numpy as np
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
 Ts = 1
 
 class RKF():

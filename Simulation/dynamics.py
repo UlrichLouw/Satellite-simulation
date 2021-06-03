@@ -1,11 +1,11 @@
 import numpy as np
-import Controller
-from Disturbances import Disturbances
-import Parameters
-from Parameters import SET_PARAMS, Fault_parameters
-from Sensors import Sensors
+import Simulation.Controller as Controller
+from Simulation.Disturbances import Disturbances
+import Simulation.Parameters as Parameters
+SET_PARAMS = Parameters.SET_PARAMS 
+from Simulation.Sensors import Sensors
 import matplotlib.pyplot as plt
-import Quaternion_functions
+import Simulation.Quaternion_functions as Quaternion_functions
 import mpld3
 import time
 import csv
@@ -20,17 +20,10 @@ from decimal import Decimal
 import math
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from Kalman_filter import RKF
-from Extended_KF import EKF
+from Simulation.Kalman_filter import RKF
+from Simulation.Extended_KF import EKF
 
 Fault_names_to_num = SET_PARAMS.Fault_names
-
-# ! The matplotlib cannot display plots while visual simulation runs.
-# ! Consequently the Display and visualize parameters in Parameters 
-# ! must be set as desired
-
-if SET_PARAMS.Display:
-    import Satellite_display as view
 
 # The DCM must be calculated depending on the current quaternions
 def Transformation_matrix(q):
@@ -46,72 +39,6 @@ def Transformation_matrix(q):
     A[2,1] = 2*(q2*q3 - q1*q4)
     A[2,2] = -q1**2-q2**2+q3**2+q4**2
     return A
-
-# Function to save a csv file of simulation data
-def save_as_excel(Data, sheetnames):
-    with pd.ExcelWriter(SET_PARAMS.filename + ".xlsx") as writer:
-        i = 0
-        for data in Data:
-            df = pd.DataFrame(data, columns = data.keys())
-            sheetname = sheetnames[i]
-            df.to_excel(writer, sheet_name = sheetname, index = False)
-            i += 1
-
-####################
-# SAVE AS CSV FILE #
-####################
-
-def save_as_csv(Data, orbit):
-    df = pd.DataFrame(Data, columns = Data.keys())
-    df.to_csv(SET_PARAMS.filename + str(orbit) + ".csv")
-
-#######################################################
-# FUNCTION TO SAVE A PICKLE FILE OF SIMULATION DATA   #
-#######################################################
-def save_as_pickle(Data, orbit):
-    df = pd.DataFrame(Data, columns = Data.keys())
-    df.to_pickle(SET_PARAMS.filename + str(orbit) + ".pkl")
-
-##########################################
-# FUNCTION TO VISUALIZE DATA AS GRAPHS   #
-##########################################
-def visualize_data(D, fault):
-    for i in D:
-        if i == "Current fault" or i == "Current fault binary" or i == "Current fault numeric":
-            pass
-        elif i == "Sun in view":
-            pass
-        else:
-            y = np.array((D[i]))
-            fig = make_subplots(rows=3, cols=1)
-            x = y.shape[0]
-            x = np.arange(0,x,1)
-            y_min = np.amin(y)
-            y_max = np.amax(y)
-
-            fig.append_trace(go.Scatter(
-                x=x,
-                y=y[:,0],
-                name = "x"
-            ), row=1, col=1)
-
-            fig.append_trace(go.Scatter(
-                x=x,
-                y=y[:,1],
-                name = "y"
-            ), row=2, col=1)
-
-            fig.append_trace(go.Scatter(
-                x=x,
-                y=y[:,2],
-                name = 'z'
-            ), row=3, col=1)
-
-            fig.update_yaxes(range=[y_min, y_max], row=1, col=1)
-            fig.update_yaxes(range=[y_min, y_max], row=2, col=1)
-            fig.update_yaxes(range=[y_min, y_max], row=3, col=1)
-            fig.update_layout(height=600, width=600, title_text=str(i))
-            fig.write_html("Plots/" + str(fault) +"/"+ str(i)+".html")
 
 ##############################################################################
 # FUNCTION TO CALCULATE THE ANGULAR MOMENTUM BASED ON THE DERIVATIVE THEREOF #
@@ -139,6 +66,7 @@ class Dynamics:
         self.seed = seed
         self.np_random = np.random
         self.np_random.seed(seed)                   # Ensures that every fault parameters are implemented with different random seeds
+        self.sense = Sensors()
         self.dist = Disturbances()                  # Disturbances of the simulation
         self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
         self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
@@ -185,6 +113,7 @@ class Dynamics:
             "Magnetometer": [],    #B vector in SBC
             "Earth": [],           #Satellite position vector in ORC
             "Angular momentum of wheels": [],    #Wheel angular velocity of each reaction wheel
+            "star": [],
             "Angular velocity of satellite": [],
             "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
             "Current fault": [],                            #What the fault is that the system is currently experiencing
@@ -346,8 +275,6 @@ class Dynamics:
         self.Nw = N_control_wheel
         self.Ngg = Ngg
 
-        y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
-
         return y
 
     ###########################################################################################
@@ -404,11 +331,11 @@ class Dynamics:
         self.Fault_implementation()
 
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
-        self.r_sat, self.v_sat_EIC, self.A_EIC_to_ORC, r_EIC = sense.satellite_vector(self.t)
+        self.r_sat, self.v_sat_EIC, self.A_EIC_to_ORC, r_EIC = self.sense.satellite_vector(self.t)
         self.A_EIC_to_SBC = self.A_EIC_to_ORC @ self.A_ORC_to_SBC
         self.r_EIC = np.asarray(r_EIC).astype(np.float64)
 
-        self.S_EIC, self.sun_in_view = sense.sun(self.t)
+        self.S_EIC, self.sun_in_view = self.sense.sun(self.t)
         self.S_ORC = self.A_EIC_to_ORC @ self.S_EIC
 
         ######################################
@@ -430,7 +357,7 @@ class Dynamics:
         self.determine_sun_vision()
         self.determine_earth_vision()
     
-        self.Beta = sense.magnetometer(self.t) 
+        self.Beta = self.sense.magnetometer(self.t) 
 
         self.B = self.A_EIC_to_SBC @ self.Beta 
 
@@ -448,7 +375,7 @@ class Dynamics:
 
         # Model star tracker vector as measured
         self.star_tracker_vector_measured = self.A_ORC_to_SBC @ self.star_tracker_vector #self.Star_tracker_fault.normal_noise(self.A_ORC_to_SBC @ self.star_tracker_vector,SET_PARAMS.star_tracker_noise)
-        #self.star_tracker_vector_measured = self.star_tracker_vector_measured/np.linalg.norm(self.star_tracker_vector_measured)
+        self.star_tracker_vector_measured = self.star_tracker_vector_measured/np.linalg.norm(self.star_tracker_vector_measured)
         #self.star_tracker_vector_measured = self.star_tracker_vector
 
         self.sensor_vectors = {
@@ -470,7 +397,7 @@ class Dynamics:
         # DETERMINE THE ACTUAL POSITION OF THE #
         # SATELLITE FROM THE EARTH AND THE SUN #
         ########################################
-        
+
         for sensor in self.sensors_kalman:
             # Step through both the sensor noise and the sensor measurement
             # vector is the vector of the sensor's measurement
@@ -492,11 +419,10 @@ class Dynamics:
             if not (v_ORC_k == 0.0).all():
                 # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
                 x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
-                if self.t >= 1000:
+                if self.t >= 10000:
                     self.q = x[3:]
                     self.w_bi = x[:3]
-        
-        #print(np.max(self.q - q))
+
         self.t += self.dt
 
         self.update()
@@ -524,6 +450,7 @@ class Dynamics:
         self.Orbit_Data["Magnetometer"].append(self.B)
         self.Orbit_Data["Sun"].append(self.S_b[:,0])
         self.Orbit_Data["Earth"].append(self.r_sat_sbc)
+        self.Orbit_Data["star"].append(self.star_tracker_vector_measured)
         self.Orbit_Data["Angular momentum of wheels"].append(self.angular_momentum[:,0])
         self.Orbit_Data["Angular velocity of satellite"].append(self.w_bi[:,0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)
@@ -539,117 +466,3 @@ class Dynamics:
             temp[Fault_names_to_num[self.fault] - 1] = 1
             self.Orbit_Data["Current fault numeric"].append(temp)
             self.Orbit_Data["Current fault binary"].append(0 if self.fault == "None" else 1)
-
-def loop(index, Data, orbit_descriptions):
-    print(SET_PARAMS.Fault_names_values[index])
-
-    if SET_PARAMS.Display:
-        satellite = view.initializeCube(SET_PARAMS.Dimensions)
-        pv = view.ProjectionViewer(1920, 1080, satellite)
-    
-    for j in range(1, int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
-        w, q, A, r, sun_in_view = D.rotation()
-        if SET_PARAMS.Display and j%SET_PARAMS.skip == 0:
-            pv.run(w, q, A, r, sun_in_view)
-        
-        if j%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/10)) == 0:
-            print("Number of time steps for orbit loop number", index, " = ", "%.2f" % float(j/int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))))
-
-        if SET_PARAMS.Fault_simulation_mode == 2 and j%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/SET_PARAMS.fixed_orbit_failure)) == 0:
-            D.initiate_purposed_fault(SET_PARAMS.Fault_names_values[index])
-            if SET_PARAMS.Display:
-                pv.fault = D.fault
-
-    if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
-        path_to_folder = Path("Plots/" + str(D.fault))
-        path_to_folder.mkdir(exist_ok=True)
-        visualize_data(D.Orbit_Data, D.fault)
-    
-    elif SET_PARAMS.Display == True:
-        pv.save_plot(D.fault)
-
-    print("Number of multiple orbits", index)  
-    Data[index] = D.Orbit_Data
-    orbit_descriptions[index] = D.fault
-
-    if SET_PARAMS.save_as == ".csv":
-        save_as_csv(D.Orbit_Data, index)
-    else:
-        save_as_pickle(D.Orbit_Data, index)
-
-################################################################
-# FOR ALL OF THE FAULTS RUN A NUMBER OF ORBITS TO COLLECT DATA #
-################################################################
-if __name__ == "__main__":
-    sense = Sensors()
-
-    #########################################################
-    # IF THE SAVE AS IS EQUAL TO XLSX, THE THREADING CANNOT #
-    #           BE USED TO SAVE CSV FILES                   #     
-    #########################################################
-    if SET_PARAMS.save_as == ".xlsx":
-        Data = []
-        orbit_descriptions = []
-        for i in range(SET_PARAMS.Number_of_multiple_orbits):
-            D = Dynamics(i)
-
-            print(SET_PARAMS.Fault_names_values[i+1])
-
-            if SET_PARAMS.Display:
-                satellite = view.initializeCube(SET_PARAMS.Dimensions)
-                pv = view.ProjectionViewer(1920, 1080, satellite)
-            
-            for j in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
-                w, q, A, r, sun_in_view = D.rotation()
-                if SET_PARAMS.Display and j%SET_PARAMS.skip == 0:
-                    pv.run(w, q, A, r, sun_in_view)
-                
-                if j%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/10)) == 0:
-                    print("Number of time steps for orbit loop number", i, " = ", "%.2f" % float(j/int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts))))
-
-                if SET_PARAMS.Fault_simulation_mode == 2 and (j+1)%(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)/SET_PARAMS.fixed_orbit_failure)) == 0:
-                    D.initiate_purposed_fault(SET_PARAMS.Fault_names_values[i+1])
-                    if SET_PARAMS.Display:
-                        pv.fault = D.fault
-
-            if SET_PARAMS.Visualize and SET_PARAMS.Display == False:
-                path_to_folder = Path("Plots/" + str(D.fault))
-                path_to_folder.mkdir(exist_ok=True)
-                visualize_data(D.Orbit_Data, D.fault)
-            
-            elif SET_PARAMS.Display == True:
-                pv.save_plot(D.fault)
-
-            Data.append(D.Orbit_Data)
-            orbit_descriptions.append(str(D.fault))
-
-        save_as_excel(Data, orbit_descriptions)
-
-    ######################################################
-    # IF THE SAVE AS IS NOT EQUAL TO XLSX, THE THREADING #
-    #           CAN BE USED TO SAVE CSV FILES            #
-    ######################################################
-    else:
-        threads = []
-
-        manager = multiprocessing.Manager()
-        Data = manager.dict()
-        orbit_descriptions = manager.dict()
-
-        for i in range(1, SET_PARAMS.Number_of_multiple_orbits+1):
-            D = Dynamics(i)
-
-            t = multiprocessing.Process(target=loop, args=(i,Data, orbit_descriptions))
-            threads.append(t)
-            t.start()
-            print("Beginning of", i)
-            if i%15 == 0 or i == SET_PARAMS.Number_of_multiple_orbits:
-                for process in threads:     
-                    process.join()
-
-                threads = []
-
-
-
-
-

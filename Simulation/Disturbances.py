@@ -1,7 +1,7 @@
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
 import numpy as np
-from Earth_model import orbit
-from Sensors import Sensors
+from Simulation.Earth_model import orbit
+from Simulation.Sensors import Sensors
 
 class Disturbances:
     def __init__(self):

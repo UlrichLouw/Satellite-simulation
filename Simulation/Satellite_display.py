@@ -1,9 +1,9 @@
-import Satellite_body as sat_body
+import Simulation.Satellite_body as sat_body
 import pygame
 from operator import itemgetter
 import sys
 import matplotlib
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
    
 matplotlib.use("Agg")
 
