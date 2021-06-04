@@ -6,18 +6,13 @@ SET_PARAMS = Parameters.SET_PARAMS
 from Simulation.Sensors import Sensors
 import matplotlib.pyplot as plt
 import Simulation.Quaternion_functions as Quaternion_functions
-import mpld3
 import time
-import csv
 import pandas as pd
 from threading import Thread
-import concurrent.futures
-import multiprocessing
 from pathlib import Path
 import seaborn as sns
 from matplotlib.ticker import EngFormatter
 from decimal import Decimal
-import math
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from Simulation.Kalman_filter import RKF
@@ -89,19 +84,7 @@ class Dynamics:
         #self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
         self.sensors_kalman = ["Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
-        """
-        ! self.Orbit_Data = {
-        !    "Sun x": [], "Sun y": [], "Sun z": [],              #S_o measurement (vector of sun in ORC)
-        !    "Magnetometer x": [], "Magnetometer y": [], "Magnetometer z": [],     #B vector in SBC
-        !    "Earth x": [],"Earth y": [], "Earth z": [],            #Satellite position vector in ORC
-        !    "Angular momentum of wheels x": [], "Angular momentum of wheels y": [], "Angular momentum of wheels z": [],      #Wheel angular velocity of each reaction wheel
-        !    "Angular momentum of satellite x": [], "Angular momentum of satellite y": [], "Angular momentum of satellite z": [],
-        !    "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
-        !    "Current fault": [],                            #What the fault is that the system is currently experiencing
-        !    "Current fault numeric": [],
-        !    "Current fault binary": []
-        !}
-        """
+
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
         #     THE MEASUREMENTS FOR EACH TIMESTEP (TS)      #
@@ -234,7 +217,7 @@ class Dynamics:
 
         self.angular_momentum = np.clip(rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
-        N_aero = 0 # ! self.dist.Aerodynamic(self.A, self.A_EIC_to_ORC)
+        N_aero = 0 # ! self.dist.Aerodynamic(self.A_ORC_to_SBC, self.A_EIC_to_ORC, self.sun_in_view)
 
         ###################################
         # DISTURBANCE OF GRAVITY GRADIENT #
@@ -312,7 +295,7 @@ class Dynamics:
             Faults.append(self.Magnetorquers_fault.Failure_Reliability_area(self.t))
             Faults.append(self.Control_fault.Failure_Reliability_area(self.t))
             Faults.append(self.Common_data_transmission_fault.Failure_Reliability_area(self.t))
-            # ! Faults.append(self.Star_tracker_fault.Failure_Reliability_area(self.t))
+            Faults.append(self.Star_tracker_fault.Failure_Reliability_area(self.t))
             for fault in Faults:
                 if fault != "None":
                     True_faults.append(fault)
@@ -430,23 +413,6 @@ class Dynamics:
         return self.w_bi, self.q, self.A_ORC_to_SBC, self.r_EIC, self.sun_in_view
 
     def update(self):
-        """
-        ! self.Orbit_Data["Magnetometer x"].append(self.B[0])
-        ! self.Orbit_Data["Magnetometer z"].append(self.B[1])
-        ! self.Orbit_Data["Magnetometer y"].append(self.B[2])
-        ! self.Orbit_Data["Sun x"].append(self.S_b[0][0])
-        ! self.Orbit_Data["Sun y"].append(self.S_b[1][0])
-        ! self.Orbit_Data["Sun z"].append(self.S_b[2][0])
-        ! self.Orbit_Data["Earth x"].append(self.r_sat_sbc[0])
-        ! self.Orbit_Data["Earth y"].append(self.r_sat_sbc[1])
-        ! self.Orbit_Data["Earth z"].append(self.r_sat_sbc[2])
-        ! self.Orbit_Data["Angular momentum of wheels x"].append(self.angular_momentum[0][0])
-        ! self.Orbit_Data["Angular momentum of wheels y"].append(self.angular_momentum[1][0])
-        ! self.Orbit_Data["Angular momentum of wheels z"].append(self.angular_momentum[2][0])
-        ! self.Orbit_Data["Angular momentum of satellite x"].append(self.w_bi[0][0])
-        ! self.Orbit_Data["Angular momentum of satellite y"].append(self.w_bi[1][0])
-        ! self.Orbit_Data["Angular momentum of satellite z"].append(self.w_bi[2][0])
-        """
         self.Orbit_Data["Magnetometer"].append(self.B)
         self.Orbit_Data["Sun"].append(self.S_b[:,0])
         self.Orbit_Data["Earth"].append(self.r_sat_sbc)

@@ -85,6 +85,8 @@ class SET_PARAMS:
     tangential_accommodation = 0.8
     ratio_of_molecular_exit = 0.05
     offset_vector = np.array(([0.01,0.01,0.01]))
+    unit_normal_vector = np.array([[0,1,0],[1,0,0],[0,0,1]])
+    atmospheric_reference_density = 1.225
     
     ###############################
     # EARTH EFFECTS (GEOMAGNETIC) #
@@ -111,7 +113,9 @@ class SET_PARAMS:
     Iz = 0.3 #kg.m^2
     Inertia = np.diag([Ix, Iy, Iz])
     Iw = 88.1e-6 #kgm^2 Inertia of the RW-06 wheel
-    Surface_area_i = Dimensions[0] * Dimensions[1]
+    Surface_area_i = np.array(([Dimensions[0] * Dimensions[1], 
+                                Dimensions[1] * Dimensions[2], 
+                                Dimensions[0] * Dimensions[2]]))
     kgx = 3 * wo**2 * (Iz - Iy)
     kgy = 3 * wo**2 * (Ix - Iz)
     kgz = 3 * wo**2 * (Iy - Ix)

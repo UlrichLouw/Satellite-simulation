@@ -120,7 +120,12 @@ class EKF():
         if np.isnan(self.x_k).any():
             print("Break")
 
-        # Calculate the measurement perturbatestimated 
+        # Calculate the measurement perturbate estimated 
+        H_k = Jacobian_H(self.q, vmodel_k)
+        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_estimated, self.R_k)
+
+        return self.x_k
+
 
 
 def system_noise_covariance_matrix_discrete(T11, T12, T21, T22, Q_wt):

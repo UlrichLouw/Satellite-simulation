@@ -20,7 +20,7 @@ class Disturbances:
         
         return Ngg
 
-    def Aerodynamic(self, DCM, EIC_to_ORC):
+    def Aerodynamic(self, DCM, EIC_to_ORC, sun_in_view):
         r_sat = np.array(([self.sense.r_sat]))
         v_A_EIC = np.matmul(np.array(([[0],[0],[SET_PARAMS.w_earth]])),r_sat)
         v_ORC = np.matmul(EIC_to_ORC,v_A_EIC)
@@ -32,16 +32,19 @@ class Disturbances:
         sigma_n = SET_PARAMS.normal_accommodation  # normal_accommodation
         S = SET_PARAMS.ratio_of_molecular_exit        # ratio_of_molecular_exit
         r_pi = SET_PARAMS.offset_vector
-        n_i = unit_inward_normal
-        if Sensors.nadir()[0]:
+        n_i = SET_PARAMS.unit_normal_vector
+        p_o = SET_PARAMS.atmospheric_reference_density
+        if sun_in_view:
             p = 0.5 * (p_o * np.exp(-(h-h_o)/H))
         else:
             p = (p_o * np.exp(-(h-h_o)/H))
 
-        va = np.matmul(np.array(([0],[0],[w_e])), r_sat) - SET_PARAMS.v_sat
-        N_aero = 0
+        va = np.matmul(np.array(([0],[0],[SET_PARAMS.w_earth])), r_sat) - SET_PARAMS.v_sat
+        N_aero = []
         for i in range(3):
-            N_aero = N_aero + p * np.linalg.norm(va)**2 * Ai * np.heaviside(np.cos(alpha_i))*np.cos(alpha_i)*sigma_t*(r_pi) + (sigma_n * S + (2-sigma_n - sigma_t)*np.cos(alpha_i)*(r_pi))
+            N_aero.append(p * np.linalg.norm(va)**2 * Ai[i] * np.heaviside(np.cos(alpha_i))*np.cos(alpha_i)*sigma_t*(r_pi) + (sigma_n * S + (2-sigma_n - sigma_t)*np.cos(alpha_i)*(r_pi)))
+        
+        N_aero = np.array((N_aero))    
 
         return N_aero
 

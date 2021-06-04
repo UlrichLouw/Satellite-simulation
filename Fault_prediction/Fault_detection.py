@@ -10,11 +10,22 @@ from Simulation.Parameters import SET_PARAMS
 
 class Basic_detection:
     def __init__(self):
-        sun_threshold = 0.15                
+        # Sun parameters
+        self.sun_var_threshold = 0.15         
+
+        # Earth parameters       
         earth_threshold = 0.1
-        star_threshold = 0.25
+        self.earth_var_threshold = 0.2
+
+        # Star parameters
+        self.star_var_threshold = 0.25
+
+        # Angular momentum parameters
         angular_threshold = 0.1 
+
+        # Magetometer parameters
         magnetometer_threshold = 0.2
+
         self.sun_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.earth_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.star_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
@@ -51,7 +62,10 @@ class Basic_detection:
         if norm_sun != 1:
             Error = "SUN_BROKEN"
 
-        
+        if var_sun >= self.sun_var_threshold:
+            Error = "EARTH_BROKEN"
+
+
     ######################################################
     # IF THE THRESHOLD OF THE STAR VECTOR IS LARGER THAT #
     #     A SPECIFIED VALUE THEN IT RETURN AN ERROR      #
@@ -67,7 +81,10 @@ class Basic_detection:
         if norm_star != 1:
             Error = "STAR_BROKEN"
 
-    
+        if var_star >= self.star_var_threshold:
+            Error = "EARTH_BROKEN"
+
+        
     ########################################
     # IF THE EARTH VECTOR IS LARGER THAN A #
     # GIVEN THRESHOLD THEN RETURN AN ERROR #
@@ -83,6 +100,8 @@ class Basic_detection:
         if norm_earth != 1:
             Error = "EARTH_BROKEN"
 
+        if var_earth >= self.earth_var_threshold:
+            Error = "EARTH_BROKEN"
     
     ######################################################
     # IF THE ANGULAR MOMENTUM IS LARGER THAN A SPECIFIED #
@@ -123,6 +142,21 @@ class Basic_detection:
 
 class Correlation_detection:
     def __init__(self):
+        ######################
+        # STANDARD DEVIATION #
+        ######################
+        # Use three standard deviations away from the average 
+        # of a buffer to flag an anomaly. The buffer will be 
+        # used to determine the average as soon as the buffer
+        # is full.
+
+        ###############
+        # CORRELATION #
+        ###############
+        # Use the theoretical correlation between sensors and
+        # sensor vectors to determine whether the current data
+        # is an anomaly or not.
+
         sun_threshold = 0.15
         earth_threshold = 0.1
         star_threshold = 0.25
