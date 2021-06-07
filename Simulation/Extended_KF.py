@@ -43,8 +43,8 @@ class EKF():
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
-        self.R_k = np.eye(3)
-        self.Q_k = np.diag([0.1, 0.1, 0.1, 0.01, 0.01, 0.01, 0.01]) ** 2
+
+        self.Q_k = np.diag([1, 1, 1, 1, 1, 1, 1]) ** 2
         
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
@@ -52,7 +52,7 @@ class EKF():
         self.dh = self.dt/10
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt, x):
         # Model update
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
 
@@ -86,15 +86,15 @@ class EKF():
         # Calculating the system noise covariance matrix. This matrix 
         # can either be fixed at initiation or calculated based on the current F_t and 
         # the noise of the angular velocity (self.Q_wt)
-        self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
+        #self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
 
         # Calculate the measurement perturbation matrix from the 
         # estimated state vector (Jacobian matrix H_k)   
         H_k = Jacobian_H(self.q, vmodel_k)
 
-        # Recalculate the transformation matrix based on the updated quaternion matrix
-        self.A_ORC_to_SBC = Transformation_matrix(self.q)
-
+        # ! Normalizing both these matrices causes the kalman filter to work
+        H_k = H_k/np.linalg.norm(H_k)
+        #self.sigma_k = self.sigma_k/np.linalg.norm(self.sigma_k)
         # Calculate the estimated state covariance matrix 
         P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
@@ -105,6 +105,7 @@ class EKF():
 
         # Calculate the gain matrix K_k
         K_k = Jacobian_K(P_k_estimated, H_k, self.R_k)
+        K_k = K_k/np.linalg.norm(K_k)
         if np.isnan(K_k).any():
             print("Break")
         
@@ -122,6 +123,7 @@ class EKF():
 
         # Calculate the measurement perturbate estimated 
         H_k = Jacobian_H(self.q, vmodel_k)
+        H_k = H_k/np.linalg.norm(H_k)
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_estimated, self.R_k)
 
         return self.x_k
@@ -205,6 +207,10 @@ def state_covariance_matrix(Q_k, P_k, sigma_k):
 
 
 def update_state_covariance_matrix(K_k, H_k, P_k, R_k):
+    t = K_k @ R_k @ K_k.T
+    e = np.linalg.inv(np.eye(7) - K_k @ H_k)
+    m = (np.eye(7) - K_k @ H_k)
+
     P_k = (np.eye(7) - K_k @ H_k) @ P_k @ np.linalg.inv(np.eye(7) - K_k @ H_k) + K_k @ R_k @ K_k.T
     return P_k
 
@@ -286,6 +292,7 @@ def F_t_function(h, wi, q, omega_k, A):
     B = np.concatenate((BL, BR), axis = 1)
 
     Ft = np.concatenate((T, B))
+
     return Ft, TL, TR, BL, BR
 
 def rungeKutta_h(x0, angular, x, h, N_control):

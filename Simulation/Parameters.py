@@ -141,6 +141,7 @@ class SET_PARAMS:
     RW_sigma_y = 8.8/10
     RW_sigma_z = 21.2/10
     RW_sigma = np.mean([RW_sigma_x, RW_sigma_y, RW_sigma_y])
+    Rotation_max = 2.0 # degrees per second
     
     ######################
     # CONTROL PARAMETERS #
@@ -152,9 +153,10 @@ class SET_PARAMS:
     Ts = 1 # Time_step
     wn = 1
     Kp = 0.22 * wn**2 
-    Kd = 3 * wn * 0.707
+    Kd = 4 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
+    Kalman_filter_use = True
 
     ############################
     # KALMAN FILTER PARAMETERS #
@@ -176,7 +178,7 @@ class SET_PARAMS:
     # NUMBER OF REPETITIONS FOR ORBITS AND HOW MANY ORBITS PER REPETITION #
     #######################################################################
 
-    Number_of_orbits = 10 # * This value can constantly be changed as well as the number of orbits
+    Number_of_orbits = 1 # * This value can constantly be changed as well as the number of orbits
     Number_of_multiple_orbits = 17
     
     ##########################

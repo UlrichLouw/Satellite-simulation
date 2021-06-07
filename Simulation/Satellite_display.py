@@ -144,7 +144,6 @@ class ProjectionViewer:
         self.screen.blit(textSurface, textRect)
 
     def plot(self,r,sun_in_view):
-        """
         if self.sun_in_view != sun_in_view or self.step == 0:
             u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
             x = np.cos(u)*np.sin(v)*(self.Radius_earth)
@@ -155,7 +154,7 @@ class ProjectionViewer:
             else:
                 self.ax.plot_wireframe(x, y, z, color="b", alpha = 0.1)
             self.sun_in_view = sun_in_view
-        """
+        
         self.step += 1
         self.position_.append(r)
         position = np.array((self.position_))

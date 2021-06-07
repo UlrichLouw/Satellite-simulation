@@ -83,7 +83,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         #self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -96,7 +96,7 @@ class Dynamics:
             "Magnetometer": [],    #B vector in SBC
             "Earth": [],           #Satellite position vector in ORC
             "Angular momentum of wheels": [],    #Wheel angular velocity of each reaction wheel
-            "star": [],
+            "Star": [],
             "Angular velocity of satellite": [],
             "Sun in view": [],                              #True or False values depending on whether the sun is in view of the satellite
             "Current fault": [],                            #What the fault is that the system is currently experiencing
@@ -123,7 +123,9 @@ class Dynamics:
             self.r_sat_sbc = self.Common_data_transmission_fault.Bit_flip(self.r_sat_sbc)
             self.r_sat_sbc = self.Common_data_transmission_fault.Sign_flip(self.r_sat_sbc)
             self.r_sat_sbc = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.r_sat_sbc) 
-            self.r_sat_sbc = self.r_sat_sbc/np.linalg.norm(self.r_sat_sbc)
+            norm_r =np.linalg.norm(self.r_sat_sbc)
+            if norm_r != 0:
+                self.r_sat_sbc = self.r_sat_sbc/norm_r
         else:
             self.r_sat_sbc = np.zeros(self.r_sat_sbc.shape)
 
@@ -151,7 +153,9 @@ class Dynamics:
                 self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
-                self.S_b = self.S_b/np.linalg.norm(self.S_b)
+                norm_S_b = np.linalg.norm(self.S_b)
+                if norm_S_b != 0:
+                    self.S_b = self.S_b/norm_S_b
                 self.sun_noise = SET_PARAMS.Fine_sun_noise
 
             elif angle_difference_coarse < SET_PARAMS.Coarse_sun_sensor_angle:
@@ -166,7 +170,9 @@ class Dynamics:
                 self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
-                self.S_b = self.S_b/np.linalg.norm(self.S_b)
+                norm_S_b =np.linalg.norm(self.S_b)
+                if norm_S_b != 0:
+                    self.S_b = self.S_b/norm_S_b
                 self.sun_noise = SET_PARAMS.Coarse_sun_noise
             else:
                 self.S_b = np.zeros(self.S_b.shape)
@@ -258,6 +264,8 @@ class Dynamics:
         self.Nw = N_control_wheel
         self.Ngg = Ngg
 
+        y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
+
         return y
 
     ###########################################################################################
@@ -280,7 +288,9 @@ class Dynamics:
     
             x0 = x0 + h; 
         
-        y = y/np.linalg.norm(y)
+        norm_y = np.linalg.norm(y)
+        if norm_y != 0:
+            y = y/norm_y
 
         return y
 
@@ -326,11 +336,16 @@ class Dynamics:
         ######################################
         
         self.r_sat_sbc = self.A_ORC_to_SBC @ self.r_sat
-        
+
+        if (self.S_EIC == np.nan).any():
+            print("break")
+
         self.S_b = self.A_EIC_to_SBC @ self.S_EIC
         
-        if self.sun_in_view:
-            self.S_b = self.S_b/np.linalg.norm(self.S_b)
+        norm_S_b = np.linalg.norm(self.S_b)
+
+        if self.sun_in_view and norm_S_b != 0:
+            self.S_b = self.S_b/norm_S_b
 
         ##################################################
         # DETERMINE WHETHER THE SUN AND THE EARTH SENSOR #
@@ -354,7 +369,11 @@ class Dynamics:
         self.B = self.Common_data_transmission_fault.Bit_flip(self.B)
         self.B = self.Common_data_transmission_fault.Sign_flip(self.B)
         self.B = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.B)
-        self.B = self.B/np.linalg.norm(self.B)
+
+        norm_B = np.linalg.norm(self.B)
+
+        if norm_B != 0:
+            self.B = self.B/norm_B
 
         # Model star tracker vector as measured
         self.star_tracker_vector_measured = self.A_ORC_to_SBC @ self.star_tracker_vector #self.Star_tracker_fault.normal_noise(self.A_ORC_to_SBC @ self.star_tracker_vector,SET_PARAMS.star_tracker_noise)
@@ -376,36 +395,39 @@ class Dynamics:
 
         self.q = self.rungeKutta_q(self.t, self.q, self.t+self.dt, self.dh)
 
+        if np.isnan(self.q).any():
+            print("Break")
         ########################################
         # DETERMINE THE ACTUAL POSITION OF THE #
         # SATELLITE FROM THE EARTH AND THE SUN #
         ########################################
+        if SET_PARAMS.Kalman_filter_use:
+            for sensor in self.sensors_kalman:
+                # Step through both the sensor noise and the sensor measurement
+                # vector is the vector of the sensor's measurement
+                # This is used to compare it to the modelled measurement
+                # Consequently, the vector is the ORC modelled vector before
+                # the transformation Matrix is implemented on the vector
+                # Since the transformation matrix takes the modelled and measured into account
+                # Only noise is added to the measurement
 
-        for sensor in self.sensors_kalman:
-            # Step through both the sensor noise and the sensor measurement
-            # vector is the vector of the sensor's measurement
-            # This is used to compare it to the modelled measurement
-            # Consequently, the vector is the ORC modelled vector before
-            # the transformation Matrix is implemented on the vector
-            # Since the transformation matrix takes the modelled and measured into account
-            # Only noise is added to the measurement
-
-            v = self.sensor_vectors[sensor]
-            v_ORC_k = np.reshape(v["modelled"],(3,1))
-            v_measured_k = np.reshape(v["measured"],(3,1))
-            self.EKF.measurement_noise = v["noise"]
-            #self.Nm = np.zeros(self.Nm.shape)
-            #self.Nw = np.zeros(self.Nw.shape)
-            #self.Ngyro = np.zeros(self.Ngyro.shape)
-            #self.Ngg = np.zeros(self.Ngg.shape)
-            
-            if not (v_ORC_k == 0.0).all():
-                # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
-                if self.t >= 10000:
+                v = self.sensor_vectors[sensor]
+                v_ORC_k = np.reshape(v["modelled"],(3,1))
+                v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
+                v_measured_k = np.reshape(v["measured"],(3,1))
+                self.EKF.measurement_noise = v["noise"]
+                #self.Nm = np.zeros(self.Nm.shape)
+                #self.Nw = np.zeros(self.Nw.shape)
+                #self.Ngyro = np.zeros(self.Ngyro.shape)
+                #self.Ngg = np.zeros(self.Ngg.shape)
+                x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+                
+                if not (v_ORC_k == 0.0).all():
+                    # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
+                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt, x_k_estimated)
                     self.q = x[3:]
                     self.w_bi = x[:3]
-
+        
         self.t += self.dt
 
         self.update()
@@ -416,7 +438,7 @@ class Dynamics:
         self.Orbit_Data["Magnetometer"].append(self.B)
         self.Orbit_Data["Sun"].append(self.S_b[:,0])
         self.Orbit_Data["Earth"].append(self.r_sat_sbc)
-        self.Orbit_Data["star"].append(self.star_tracker_vector_measured)
+        self.Orbit_Data["Star"].append(self.star_tracker_vector_measured)
         self.Orbit_Data["Angular momentum of wheels"].append(self.angular_momentum[:,0])
         self.Orbit_Data["Angular velocity of satellite"].append(self.w_bi[:,0])
         self.Orbit_Data["Sun in view"].append(self.sun_in_view)

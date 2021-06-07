@@ -1,10 +1,10 @@
 import sys
 
-sys.path.insert(1, './Simulation')
-sys.path.insert(1, './Fault_prediction')
+sys.path.insert(1, '.../Satellite-simulation')
+#sys.path.insert(1, '../Fault_prediction')
 
 import pandas as pd
-from Parameters import SET_PARAMS
+from Simulation.Parameters import SET_PARAMS
 import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split

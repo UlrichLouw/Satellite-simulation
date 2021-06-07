@@ -3,7 +3,7 @@ import requests
 import json
 import cloudscraper
 
-url = "https://api.cryptonator.com/api/full/btc-USD"
+url = "https://api.cryptonator.com/api/full/btc-ZAR"
 
 if __name__ == "__main__":
     scraper = cloudscraper.create_scraper()

@@ -1,1 +1,1 @@
-{"ticker": {"base": "BTC", "target": "ZAR", "price": "857014.00000000", "volume": "11.60841700", "change": "0.00000000", "markets": [{"market": "Binance", "price": "857014.00000000", "volume": 11.608417}]}, "timestamp": 1622721422, "success": true, "error": ""}
+{"ticker": {"base": "BTC", "target": "ZAR", "price": "857014.00000000", "volume": "11.60841700", "change": "0.00000000", "markets": [{"market": "Binance", "price": "857014.00000000", "volume": 11.608417}]}, "timestamp": 1622797322, "success": true, "error": ""}

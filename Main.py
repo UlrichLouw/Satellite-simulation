@@ -6,6 +6,7 @@ import multiprocessing
 from pathlib import Path
 from Simulation.dynamics import Dynamics
 from Simulation.Save_display import visualize_data, save_as_csv, save_as_pickle, save_as_excel
+import Fault_prediction.Fault_detection as Fault_detection
 
 # ! The matplotlib cannot display plots while visual simulation runs.
 # ! Consequently the Display and visualize parameters in Parameters 
@@ -64,13 +65,19 @@ if __name__ == "__main__":
     # IF THE SAVE AS IS EQUAL TO XLSX, THE THREADING CANNOT #
     #           BE USED TO SAVE CSV FILES                   #     
     #########################################################
+    SET_PARAMS.Display = True
+    SET_PARAMS.save_as = ".xlsx"
+    SET_PARAMS.Kalman_filter_use = False
+
     if SET_PARAMS.save_as == ".xlsx":
+        FD = Fault_detection.Basic_detection()
         Data = []
         orbit_descriptions = []
-        for i in range(SET_PARAMS.Number_of_multiple_orbits):
+        for i in range(4, SET_PARAMS.Number_of_multiple_orbits):
             D = Dynamics(i)
 
             print(SET_PARAMS.Fault_names_values[i+1])
+
 
             if SET_PARAMS.Display:
                 satellite = view.initializeCube(SET_PARAMS.Dimensions)
@@ -78,6 +85,12 @@ if __name__ == "__main__":
             
             for j in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
                 w, q, A, r, sun_in_view = D.rotation()
+
+                # Detect faults based on data from Dynamics (D):
+                Fault = FD.Per_Timestep(D.Orbit_Data)
+                if Fault != "None":
+                    print(Fault)
+
                 if SET_PARAMS.Display and j%SET_PARAMS.skip == 0:
                     pv.run(w, q, A, r, sun_in_view)
                 

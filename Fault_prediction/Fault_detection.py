@@ -11,41 +11,41 @@ from Simulation.Parameters import SET_PARAMS
 class Basic_detection:
     def __init__(self):
         # Sun parameters
-        self.sun_var_threshold = 0.15         
+        self.sun_var_threshold = 0.4        
 
         # Earth parameters       
-        earth_threshold = 0.1
-        self.earth_var_threshold = 0.2
+        self.earth_var_threshold = 0.4
 
         # Star parameters
-        self.star_var_threshold = 0.25
+        self.star_var_threshold = 0.4
 
         # Angular momentum parameters
-        angular_threshold = 0.1 
+        self.angular_var_threshold = 0.1 
 
         # Magetometer parameters
-        magnetometer_threshold = 0.2
+        self.magnetometer_var_threshold = 0.4
 
         self.sun_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.earth_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.star_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.magnetometer_buffer = collections.deque(maxlen = SET_PARAMS.buffer_size)
         self.angular_threshold = collections.deque(maxlen = SET_PARAMS.buffer_size)
-        self.sensors = {"sun": self.sun_buffer, 
-                "earth": self.earth_buffer, 
-                "star": self.star_buffer, 
+        self.sensors = {"Sun": self.sun_buffer, 
+                "Earth": self.earth_buffer, 
+                "Star": self.star_buffer, 
                 "Angular momentum of wheels": self.angular_threshold,
-                "magnetometer": self.magnetometer_buffer}
+                "Magnetometer": self.magnetometer_buffer}
 
     def Per_Timestep(self, Data):
         for sensor in self.sensors:
-            self.sensors[sensor].append(Data[sensor][0])
-
-        self.sun_fault(self.sensors['sun'])
-        self.star_fault(self.sensors['star'])
-        self.earth_fault(self.sensors['earth'])
+            self.sensors[sensor].append(Data[sensor][-1])
+        self.Error = "None"
+        self.sun_fault(self.sensors['Sun'])
+        self.star_fault(self.sensors['Star'])
+        self.earth_fault(self.sensors['Earth'])
         self.angular_momentum_fault(self.sensors['Angular momentum of wheels'])
-
+        self.magnetometer_fault(self.sensors['Magnetometer'])
+        return self.Error
 
     #####################################################
     # IF THE THRESHOLD OF THE SUN VECTOR IS LARGER THAT #
@@ -59,11 +59,11 @@ class Basic_detection:
         var_sun = np.var(sun)
         norm_sun = np.linalg.norm(current_sun)
 
-        if norm_sun != 1:
-            Error = "SUN_BROKEN"
+        if round(norm_sun,5) != 1 and round(norm_sun,5) != 0:
+            self.Error = "SUN_BROKEN"
 
         if var_sun >= self.sun_var_threshold:
-            Error = "EARTH_BROKEN"
+            self.Error = "SUN_BROKEN"
 
 
     ######################################################
@@ -78,11 +78,11 @@ class Basic_detection:
         var_star = np.var(star)
         norm_star = np.linalg.norm(current_star)
 
-        if norm_star != 1:
-            Error = "STAR_BROKEN"
+        if round(norm_star,5) != 1:
+            self.Error = "STAR_BROKEN"
 
         if var_star >= self.star_var_threshold:
-            Error = "EARTH_BROKEN"
+            self.Error = "STAR_BROKEN"
 
         
     ########################################
@@ -97,11 +97,12 @@ class Basic_detection:
         var_earth = np.var(earth)
         norm_earth = np.linalg.norm(current_earth)
 
-        if norm_earth != 1:
-            Error = "EARTH_BROKEN"
+        if round(norm_earth,5) != 1 and round(norm_earth,5) != 0:
+            self.Error = "EARTH_BROKEN"
 
         if var_earth >= self.earth_var_threshold:
-            Error = "EARTH_BROKEN"
+            self.Error = "EARTH_BROKEN"
+
     
     ######################################################
     # IF THE ANGULAR MOMENTUM IS LARGER THAN A SPECIFIED #
@@ -115,8 +116,8 @@ class Basic_detection:
         var_angular = np.var(angular)
         norm_angular = np.linalg.norm(current_angular)
 
-        if norm_angular != 1:
-            Error = "ANGULAR_BROKEN"
+        if var_angular >= self.angular_var_threshold:
+            self.Error = "ANGULAR_BROKEN"
 
     
     ########################################################
@@ -131,8 +132,11 @@ class Basic_detection:
         var_magnetometer = np.var(magnetometer)
         norm_magnetometer = np.linalg.norm(current_magnetometer)
 
-        if norm_magnetometer != 1:
-            Error = "MAGNETOMETER_BROKEN"
+        if round(norm_magnetometer,5) != 1:
+            self.Error = "MAGNETOMETER_BROKEN"
+
+        if var_magnetometer >= self.magnetometer_var_threshold:
+            self.Error = "MAGNETOMETER_BROKEN"
 
 
 #####################################################################
