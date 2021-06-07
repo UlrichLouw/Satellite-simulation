@@ -52,7 +52,7 @@ class EKF():
         self.dh = self.dt/10
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt, x):
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
         # Model update
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
 
@@ -92,9 +92,9 @@ class EKF():
         # estimated state vector (Jacobian matrix H_k)   
         H_k = Jacobian_H(self.q, vmodel_k)
 
-        # ! Normalizing both these matrices causes the kalman filter to work
+        # ! Normalizing the H matrix causes the kalman filter to work
         H_k = H_k/np.linalg.norm(H_k)
-        #self.sigma_k = self.sigma_k/np.linalg.norm(self.sigma_k)
+
         # Calculate the estimated state covariance matrix 
         P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
@@ -105,6 +105,8 @@ class EKF():
 
         # Calculate the gain matrix K_k
         K_k = Jacobian_K(P_k_estimated, H_k, self.R_k)
+
+        # ! Normalizing the K matrix causes the kalman filter to work
         K_k = K_k/np.linalg.norm(K_k)
         if np.isnan(K_k).any():
             print("Break")

@@ -20,7 +20,7 @@ class Basic_detection:
         self.star_var_threshold = 0.4
 
         # Angular momentum parameters
-        self.angular_var_threshold = 0.1 
+        self.angular_var_threshold = 0.01 
 
         # Magetometer parameters
         self.magnetometer_var_threshold = 0.4

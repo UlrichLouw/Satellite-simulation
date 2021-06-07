@@ -152,8 +152,8 @@ class SET_PARAMS:
     time = 1
     Ts = 1 # Time_step
     wn = 1
-    Kp = 0.22 * wn**2 
-    Kd = 4 * wn * 0.707
+    Kp = 0.7 * wn**2 
+    Kd = 1 * wn * 0.707
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
     Kalman_filter_use = True

@@ -83,7 +83,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         #self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -144,6 +144,10 @@ class Dynamics:
             if angle_difference_fine < SET_PARAMS.Fine_sun_sensor_angle:
                 self.S_b = self.Sun_sensor_fault.normal_noise(self.S_b, SET_PARAMS.Fine_sun_noise)
 
+                norm_S_b = np.linalg.norm(self.S_b)
+                if norm_S_b != 0:
+                    self.S_b = self.S_b/norm_S_b
+
                 ######################################################
                 # IMPLEMENT ERROR OR FAILURE OF SENSOR IF APPLICABLE #
                 ######################################################
@@ -153,13 +157,15 @@ class Dynamics:
                 self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
-                norm_S_b = np.linalg.norm(self.S_b)
-                if norm_S_b != 0:
-                    self.S_b = self.S_b/norm_S_b
+
                 self.sun_noise = SET_PARAMS.Fine_sun_noise
 
             elif angle_difference_coarse < SET_PARAMS.Coarse_sun_sensor_angle:
                 self.S_b = self.Sun_sensor_fault.normal_noise(self.S_b, SET_PARAMS.Coarse_sun_noise)
+
+                norm_S_b =np.linalg.norm(self.S_b)
+                if norm_S_b != 0:
+                    self.S_b = self.S_b/norm_S_b
 
                 ######################################################
                 # IMPLEMENT ERROR OR FAILURE OF SENSOR IF APPLICABLE #
@@ -170,9 +176,7 @@ class Dynamics:
                 self.S_b = self.Common_data_transmission_fault.Bit_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Sign_flip(self.S_b)
                 self.S_b = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.S_b)  
-                norm_S_b =np.linalg.norm(self.S_b)
-                if norm_S_b != 0:
-                    self.S_b = self.S_b/norm_S_b
+
                 self.sun_noise = SET_PARAMS.Coarse_sun_noise
             else:
                 self.S_b = np.zeros(self.S_b.shape)
@@ -363,6 +367,12 @@ class Dynamics:
         # IMPLEMENT ERROR OR FAILURE OF SENSOR IF APPLICABLE #
         ######################################################
         self.B = self.Magnetometer_fault.normal_noise(self.B, SET_PARAMS.Magnetometer_noise)
+
+        norm_B = np.linalg.norm(self.B)
+
+        if norm_B != 0:
+            self.B = self.B/norm_B
+
         self.B = self.Magnetometer_fault.Stop_magnetometers (self.B)
         self.B = self.Magnetometer_fault.Interference_magnetic(self.B)
         self.B = self.Magnetometer_fault.General_sensor_high_noise(self.B)
@@ -370,15 +380,10 @@ class Dynamics:
         self.B = self.Common_data_transmission_fault.Sign_flip(self.B)
         self.B = self.Common_data_transmission_fault.Insertion_of_zero_bit(self.B)
 
-        norm_B = np.linalg.norm(self.B)
-
-        if norm_B != 0:
-            self.B = self.B/norm_B
-
         # Model star tracker vector as measured
         self.star_tracker_vector_measured = self.A_ORC_to_SBC @ self.star_tracker_vector #self.Star_tracker_fault.normal_noise(self.A_ORC_to_SBC @ self.star_tracker_vector,SET_PARAMS.star_tracker_noise)
         self.star_tracker_vector_measured = self.star_tracker_vector_measured/np.linalg.norm(self.star_tracker_vector_measured)
-        #self.star_tracker_vector_measured = self.star_tracker_vector
+        self.star_tracker_vector_measured = self.Star_tracker_fault.Closed_shutter(self.star_tracker_vector_measured)
 
         self.sensor_vectors = {
         "Sun_Sensor": {"measured": self.S_b, "modelled": self.S_ORC, "noise": self.sun_noise}, 
@@ -397,10 +402,12 @@ class Dynamics:
 
         if np.isnan(self.q).any():
             print("Break")
+
         ########################################
         # DETERMINE THE ACTUAL POSITION OF THE #
         # SATELLITE FROM THE EARTH AND THE SUN #
         ########################################
+
         if SET_PARAMS.Kalman_filter_use:
             for sensor in self.sensors_kalman:
                 # Step through both the sensor noise and the sensor measurement
@@ -416,15 +423,10 @@ class Dynamics:
                 v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
                 v_measured_k = np.reshape(v["measured"],(3,1))
                 self.EKF.measurement_noise = v["noise"]
-                #self.Nm = np.zeros(self.Nm.shape)
-                #self.Nw = np.zeros(self.Nw.shape)
-                #self.Ngyro = np.zeros(self.Ngyro.shape)
-                #self.Ngg = np.zeros(self.Ngg.shape)
-                x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
-                
+
                 if not (v_ORC_k == 0.0).all():
                     # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt, x_k_estimated)
+                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
                     self.q = x[3:]
                     self.w_bi = x[:3]
         
