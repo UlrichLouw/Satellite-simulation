@@ -3,7 +3,7 @@ import requests
 import json
 import cloudscraper
 
-url = "https://api.cryptonator.com/api/full/btc-ZAR"
+url = "https://api.cryptonator.com/api/full/btc-USD"
 
 if __name__ == "__main__":
     scraper = cloudscraper.create_scraper()
@@ -12,6 +12,7 @@ if __name__ == "__main__":
         json.dump(scraper.get(url).json(), f)
     
     df = pd.read_json('data.json')
+    print(df)
     markets = df['ticker']['markets']
 
     mark_df = pd.DataFrame(columns=['market', 'price', 'volume'], index = [0])

@@ -31,6 +31,8 @@ class RKF():
         K_k = Jacobian_K(P_k_update, H_k, self.R_k)
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update)
         self.x_k = state_measurement_update(x_k_update, K_k, y_k, H_k)
+        if (self.x_k == np.nan).any():
+            print("break")
         return self.x_k
 
 def measurement_noise_covariance_matrix(measurement_noise):
@@ -43,7 +45,7 @@ def system_noise_covariance_matrix(angular_noise):
     return Q_k
 
 def Jacobian_H(v_k):
-    vx, vy, vz = v_k
+    vx, vy, vz = v_k[:,0]
     H_k = np.array(([[0, Ts*vz, -Ts*vy], [-Ts*vz, 0, Ts*vx], [Ts*vy, -Ts*vx, 0]]))
     return H_k
 
@@ -51,7 +53,9 @@ def delta_angular(Inertia, Nm, Nw, Ngyro):
     return Inertia @ (Nm - Nw - Ngyro)
 
 def state_model_update(delta_angular, x_prev):
-    return x_prev + (Ts/2) * (3 * delta_angular - delta_angular)
+    y = x_prev + (Ts/2) * (3 * delta_angular - delta_angular)
+    #y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
+    return y
 
 def state_covariance_matrix(Q_k, P_k, sigma_k):
     P_k = sigma_k @ P_k @ sigma_k.T + Q_k
@@ -67,6 +71,7 @@ def update_state_covariance_matrix(K_k, H_k, P_k):
 
 def state_measurement_update(x_k, K_k, y_k, H_k):
     x_k = x_k + K_k @ (y_k - H_k @ x_k)
+    #x_k = np.clip(x_k, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
     return x_k
 
 def measurement_state_y(H_k, w_b, m_k):

@@ -127,7 +127,7 @@ class EKF():
         H_k = Jacobian_H(self.q, vmodel_k)
         H_k = H_k/np.linalg.norm(H_k)
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_estimated, self.R_k)
-
+        self.P_k = self.P_k/np.linalg.norm(self.P_k)
         return self.x_k
 
 
@@ -209,10 +209,6 @@ def state_covariance_matrix(Q_k, P_k, sigma_k):
 
 
 def update_state_covariance_matrix(K_k, H_k, P_k, R_k):
-    t = K_k @ R_k @ K_k.T
-    e = np.linalg.inv(np.eye(7) - K_k @ H_k)
-    m = (np.eye(7) - K_k @ H_k)
-
     P_k = (np.eye(7) - K_k @ H_k) @ P_k @ np.linalg.inv(np.eye(7) - K_k @ H_k) + K_k @ R_k @ K_k.T
     return P_k
 
@@ -224,7 +220,9 @@ def state_measurement_update(x_k, K_k, e_k):
 
 def e_k_function(vmeas_k, A, vmodel_k):
     vmodel_k = A @ vmodel_k
-    vmodel_k = vmodel_k/np.linalg.norm(vmodel_k)
+    v_norm = np.linalg.norm(vmodel_k)
+    if v_norm != 0:
+        vmodel_k = vmodel_k/v_norm
     e_k = vmeas_k - vmodel_k
     return e_k
 
@@ -324,7 +322,8 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
     ######################################################
 
-    angular_momentum = np.clip(rungeKutta_h(x0, angular_momentum, x, h, Nw), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+    #angular_momentum = np.clip(rungeKutta_h(x0, angular_momentum, x, h, Nw), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+    angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
 
     n = int(np.round((x - x0)/h))
     y = w

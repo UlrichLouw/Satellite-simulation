@@ -81,9 +81,9 @@ class Dynamics:
         self.star_tracker_vector = SET_PARAMS.star_tracker_vector
         self.initiate_fault_parameters()
         self.sun_noise = SET_PARAMS.Fine_sun_noise
-        #self.RKF = RKF()                            # Rate Kalman_filter
+        self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor", "Sun_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -225,7 +225,8 @@ class Dynamics:
             N_control_wheel = self.Control_fault.Decreasing_angular_RW_momentum(N_control_wheel)
             N_control_wheel = self.Control_fault.Oscillating_angular_RW_momentum(N_control_wheel)
 
-        self.angular_momentum = np.clip(rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+        #self.angular_momentum = np.clip(rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+        self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
 
         N_aero = 0 # ! self.dist.Aerodynamic(self.A_ORC_to_SBC, self.A_EIC_to_ORC, self.sun_in_view)
 
@@ -240,6 +241,8 @@ class Dynamics:
 
         N_gyro = y * (self.Inertia @ y + self.angular_momentum)
 
+        if np.isnan(N_gyro).any() or np.isinf(N_gyro).any():
+            print("Break")
         #############################################
         # DISTURBANCE OF A REACTION WHEEL IMBALANCE #
         #############################################
@@ -268,7 +271,10 @@ class Dynamics:
         self.Nw = N_control_wheel
         self.Ngg = Ngg
 
-        y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
+        if np.isnan(self.Ngyro).any():
+            print("Break")
+
+        #y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
 
         return y
 
@@ -394,7 +400,14 @@ class Dynamics:
         ########################################################
         # THE ERROR FOR W_BI IS WITHIN THE RUNGEKUTTA FUNCTION #
         ########################################################
+        if np.isnan(self.w_bi).any():
+            print("break")
+        
+
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
+
+        if np.isnan(self.w_bi).any():
+            print("break")
         
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
 
@@ -409,6 +422,7 @@ class Dynamics:
         ########################################
 
         if SET_PARAMS.Kalman_filter_use:
+            
             for sensor in self.sensors_kalman:
                 # Step through both the sensor noise and the sensor measurement
                 # vector is the vector of the sensor's measurement
@@ -420,7 +434,9 @@ class Dynamics:
 
                 v = self.sensor_vectors[sensor]
                 v_ORC_k = np.reshape(v["modelled"],(3,1))
-                v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
+                v_norm = np.linalg.norm(v_ORC_k)
+                if (v_norm != 0).any():
+                    v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
                 v_measured_k = np.reshape(v["measured"],(3,1))
                 self.EKF.measurement_noise = v["noise"]
 
@@ -429,7 +445,33 @@ class Dynamics:
                     x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
                     self.q = x[3:]
                     self.w_bi = x[:3]
-        
+            """
+            for sensor in self.sensors_kalman:
+                # Step through both the sensor noise and the sensor measurement
+                # vector is the vector of the sensor's measurement
+                # This is used to compare it to the modelled measurement
+                # Consequently, the vector is the ORC modelled vector before
+                # the transformation Matrix is implemented on the vector
+                # Since the transformation matrix takes the modelled and measured into account
+                # Only noise is added to the measurement
+
+                v = self.sensor_vectors[sensor]
+                v_ORC_k = np.reshape(v["modelled"],(3,1))
+                v_norm = np.linalg.norm(v_ORC_k)
+                if (v_norm == 0).any():
+                    v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
+                v_measured_k = np.reshape(v["measured"],(3,1))
+                self.EKF.measurement_noise = v["noise"]
+
+                if not (v_ORC_k == 0.0).all():
+                    # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
+                    x = self.RKF.Kalman_update(v_ORC_k, self.Nm, self.Nw, self.Ngyro)
+                    #self.q = x[3:]
+                    self.w_bi = x
+                """
+        if np.isnan(self.w_bi).any():
+            print("break")
+
         self.t += self.dt
 
         self.update()

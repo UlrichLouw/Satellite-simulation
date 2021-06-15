@@ -65,10 +65,11 @@ if __name__ == "__main__":
     # IF THE SAVE AS IS EQUAL TO XLSX, THE THREADING CANNOT #
     #           BE USED TO SAVE CSV FILES                   #     
     #########################################################
-    SET_PARAMS.Display = False
+    SET_PARAMS.Display = True
     SET_PARAMS.save_as = ".xlsx"
     SET_PARAMS.Kalman_filter_use = True
-    SET_PARAMS.Number_of_orbits = 2
+    SET_PARAMS.Number_of_orbits = 1
+    SET_PARAMS.skip = 20
 
     if SET_PARAMS.save_as == ".xlsx":
         FD = Fault_detection.Basic_detection()
