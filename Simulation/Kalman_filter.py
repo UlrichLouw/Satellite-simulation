@@ -54,7 +54,6 @@ def delta_angular(Inertia, Nm, Nw, Ngyro):
 
 def state_model_update(delta_angular, x_prev):
     y = x_prev + (Ts/2) * (3 * delta_angular - delta_angular)
-    #y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
     return y
 
 def state_covariance_matrix(Q_k, P_k, sigma_k):
@@ -71,7 +70,6 @@ def update_state_covariance_matrix(K_k, H_k, P_k):
 
 def state_measurement_update(x_k, K_k, y_k, H_k):
     x_k = x_k + K_k @ (y_k - H_k @ x_k)
-    #x_k = np.clip(x_k, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
     return x_k
 
 def measurement_state_y(H_k, w_b, m_k):

@@ -92,22 +92,21 @@ class EKF():
         # estimated state vector (Jacobian matrix H_k)   
         H_k = Jacobian_H(self.q, vmodel_k)
 
-        # ! Normalizing the H matrix causes the kalman filter to work
-        H_k = H_k/np.linalg.norm(H_k)
-
         # Calculate the estimated state covariance matrix 
         P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
+        # Calculates the ORC to SBC transformation_matrix
+        self.A_ORC_to_SBC = Transformation_matrix(self.q)
+
         # Calculate the difference between the modelled and measured vector
         e_k = e_k_function(vmeas_k, self.A_ORC_to_SBC, vmodel_k)
+
         if np.linalg.det(H_k @ P_k_estimated @ H_k.T + self.R_k) == 0:
             print("break")
 
         # Calculate the gain matrix K_k
         K_k = Jacobian_K(P_k_estimated, H_k, self.R_k)
 
-        # ! Normalizing the K matrix causes the kalman filter to work
-        K_k = K_k/np.linalg.norm(K_k)
         if np.isnan(K_k).any():
             print("Break")
         
@@ -122,12 +121,12 @@ class EKF():
         # If any value within the state vector is equal to nan
         if np.isnan(self.x_k).any():
             print("Break")
-
+        
         # Calculate the measurement perturbate estimated 
         H_k = Jacobian_H(self.q, vmodel_k)
-        H_k = H_k/np.linalg.norm(H_k)
+
         self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_estimated, self.R_k)
-        self.P_k = self.P_k/np.linalg.norm(self.P_k)
+
         return self.x_k
 
 
@@ -322,8 +321,8 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
     ######################################################
 
-    #angular_momentum = np.clip(rungeKutta_h(x0, angular_momentum, x, h, Nw), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
     angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
+    angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
     n = int(np.round((x - x0)/h))
     y = w
@@ -333,10 +332,10 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     ######################################################
 
     N_disturbance = Ngg              
-    N_control = Nm- Nw
+    N_control = Nm - Nw
     N = N_control + N_disturbance
 
-    for _ in range(n):
+    for _ in range(n):    
         k1 = h*((np.linalg.inv(Inertia) @ N)) 
         k2 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k1) 
         k3 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k2) 

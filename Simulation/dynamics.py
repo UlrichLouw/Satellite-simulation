@@ -215,7 +215,10 @@ class Dynamics:
         # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
         ######################################################
 
-        N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.Control_fault)
+        N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.angular_momentum)
+
+        N_gyro = w * (self.Inertia @ w + self.angular_momentum)
+        N_gyro = np.zeros(N_gyro.shape)
 
         if "RW" in self.fault:
             N_control_wheel = self.Reaction_wheel_fault.Electronics_of_RW_failure(N_control_wheel)
@@ -224,9 +227,6 @@ class Dynamics:
             N_control_wheel = self.Control_fault.Increasing_angular_RW_momentum(N_control_wheel)
             N_control_wheel = self.Control_fault.Decreasing_angular_RW_momentum(N_control_wheel)
             N_control_wheel = self.Control_fault.Oscillating_angular_RW_momentum(N_control_wheel)
-
-        #self.angular_momentum = np.clip(rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel), -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
-        self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
 
         N_aero = 0 # ! self.dist.Aerodynamic(self.A_ORC_to_SBC, self.A_EIC_to_ORC, self.sun_in_view)
 
@@ -238,8 +238,6 @@ class Dynamics:
 
         n = int(np.round((x - x0)/h))
         y = w
-
-        N_gyro = y * (self.Inertia @ y + self.angular_momentum)
 
         if np.isnan(N_gyro).any() or np.isinf(N_gyro).any():
             print("Break")
@@ -274,7 +272,8 @@ class Dynamics:
         if np.isnan(self.Ngyro).any():
             print("Break")
 
-        #y = np.clip(y, -SET_PARAMS.Rotation_max, SET_PARAMS.Rotation_max)
+        self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
+        self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
         return y
 
@@ -399,11 +398,7 @@ class Dynamics:
 
         ########################################################
         # THE ERROR FOR W_BI IS WITHIN THE RUNGEKUTTA FUNCTION #
-        ########################################################
-        if np.isnan(self.w_bi).any():
-            print("break")
-        
-
+        ######################################################## 
         self.w_bi = self.rungeKutta_w(self.t, self.w_bi, self.t+self.dt, self.dh)
 
         if np.isnan(self.w_bi).any():
@@ -421,7 +416,7 @@ class Dynamics:
         # SATELLITE FROM THE EARTH AND THE SUN #
         ########################################
 
-        if SET_PARAMS.Kalman_filter_use:
+        if SET_PARAMS.Kalman_filter_use == "EKF":
             
             for sensor in self.sensors_kalman:
                 # Step through both the sensor noise and the sensor measurement
@@ -445,7 +440,8 @@ class Dynamics:
                     x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
                     self.q = x[3:]
                     self.w_bi = x[:3]
-            """
+
+        if SET_PARAMS.Kalman_filter_use == "RKF":
             for sensor in self.sensors_kalman:
                 # Step through both the sensor noise and the sensor measurement
                 # vector is the vector of the sensor's measurement
@@ -458,24 +454,24 @@ class Dynamics:
                 v = self.sensor_vectors[sensor]
                 v_ORC_k = np.reshape(v["modelled"],(3,1))
                 v_norm = np.linalg.norm(v_ORC_k)
-                if (v_norm == 0).any():
+                if (v_norm != 0).any():
                     v_ORC_k = v_ORC_k/np.linalg.norm(v_ORC_k)
                 v_measured_k = np.reshape(v["measured"],(3,1))
                 self.EKF.measurement_noise = v["noise"]
 
                 if not (v_ORC_k == 0.0).all():
                     # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                    x = self.RKF.Kalman_update(v_ORC_k, self.Nm, self.Nw, self.Ngyro)
-                    #self.q = x[3:]
+                    x = self.RKF.Kalman_update(v_measured_k, self.Nm, self.Nw, self.Ngyro)
                     self.w_bi = x
-                """
+                
+
         if np.isnan(self.w_bi).any():
             print("break")
 
         self.t += self.dt
 
         self.update()
-        
+
         return self.w_bi, self.q, self.A_ORC_to_SBC, self.r_EIC, self.sun_in_view
 
     def update(self):

@@ -67,8 +67,8 @@ if __name__ == "__main__":
     #########################################################
     SET_PARAMS.Display = True
     SET_PARAMS.save_as = ".xlsx"
-    SET_PARAMS.Kalman_filter_use = True
-    SET_PARAMS.Number_of_orbits = 1
+    SET_PARAMS.Kalman_filter_use = "EKF"
+    SET_PARAMS.Number_of_orbits = 10
     SET_PARAMS.skip = 20
 
     if SET_PARAMS.save_as == ".xlsx":
