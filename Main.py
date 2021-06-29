@@ -7,6 +7,7 @@ from pathlib import Path
 from Simulation.dynamics import Dynamics
 from Simulation.Save_display import visualize_data, save_as_csv, save_as_pickle, save_as_excel
 import Fault_prediction.Fault_detection as Fault_detection
+import Simulation.Constellation as Constellation
 
 # ! The matplotlib cannot display plots while visual simulation runs.
 # ! Consequently the Display and visualize parameters in Parameters 
@@ -65,13 +66,34 @@ if __name__ == "__main__":
     # IF THE SAVE AS IS EQUAL TO XLSX, THE THREADING CANNOT #
     #           BE USED TO SAVE CSV FILES                   #     
     #########################################################
-    SET_PARAMS.Display = True
+    SET_PARAMS.Display = False
     SET_PARAMS.save_as = ".xlsx"
-    SET_PARAMS.Kalman_filter_use = "EKF"
+    SET_PARAMS.Kalman_filter_use = "RKF"
     SET_PARAMS.Number_of_orbits = 10
-    SET_PARAMS.skip = 1
+    SET_PARAMS.skip = 20
+    SET_PARAMS.Number_of_satellites = 100
+    SET_PARAMS.Constellation = True
 
-    if SET_PARAMS.save_as == ".xlsx":
+    #########################################################
+    #   TO ENABLE A CONSTELLATION A CLASS IS CREATED THAT   #
+    #     CONTAINS THE DATA OF THE ENTIRE CONSTELLATION     #
+    #  THAT DATA IS TRANSFERED TO EACH SATELLITE DEPENDING  #
+    # ON THE SATELLITES ID AND THE SATELLITES CLOSEST TO IT #
+    #########################################################
+
+    if SET_PARAMS.Constellation:
+        Stellar = Constellation.Constellation(SET_PARAMS.Number_of_satellites)
+
+        for sat_num in range(SET_PARAMS.Number_of_satellites):
+            Stellar.initiate_satellite(sat_num)
+
+        for j in range(2): #int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
+            print(j)
+            for sat_num in range(SET_PARAMS.Number_of_satellites):
+                Stellar.satellites[sat_num].run()
+
+
+    elif SET_PARAMS.save_as == ".xlsx":
         FD = Fault_detection.Basic_detection()
         Data = []
         orbit_descriptions = []

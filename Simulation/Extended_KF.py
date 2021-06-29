@@ -44,15 +44,15 @@ class EKF():
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]) # ** 2
-        self.Q_k = np.eye(7)
+        self.Q_k = np.linalg.norm(np.eye(7))/1000000
+
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
         self.dt = SET_PARAMS.Ts
         self.dh = self.dt/10
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt, wbi, q):
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
         # Model update
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
         
@@ -68,6 +68,10 @@ class EKF():
         # The updated estimation of the quaternion matrix (already normalized)
         self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
         
+        # Prints error if nan in self.q
+        if np.isnan(self.q).any() or (self.q == 0).all():
+            print("nan Value in Quaternion matrix")
+
         # After both the quaternions and the angular velocity 
         # is calculated, the state vector can be calculated
         x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
@@ -82,7 +86,7 @@ class EKF():
         # Calculating the system noise covariance matrix. This matrix 
         # can either be fixed at initiation or calculated based on the current F_t and 
         # the noise of the angular velocity (self.Q_wt)
-        #self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
+        # self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
 
         # Calculate the measurement perturbation matrix from the 
         # estimated state vector (Jacobian matrix H_k)   
@@ -208,7 +212,7 @@ def state_covariance_matrix(Q_k, P_k, sigma_k):
 
 
 def update_state_covariance_matrix(K_k, H_k, P_k, R_k):
-    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ np.linalg.inv(np.eye(7) - K_k @ H_k) + K_k @ R_k @ K_k.T
+    P_k = (np.eye(7) - K_k @ H_k) @ P_k @ (np.eye(7) - K_k @ H_k).T + K_k @ R_k @ K_k.T
     return P_k
 
 
@@ -227,7 +231,7 @@ def e_k_function(vmeas_k, A, vmodel_k):
 
 
 def sigma_k_function(F_t):
-    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * np.linalg.matrix_power(F_t, 2)) #+ (1/3 * Ts**3 * np.linalg.matrix_power(F_t,3))
+    sigma_k = np.eye(7) + Ts*F_t + (0.5 * Ts**2 * np.linalg.matrix_power(F_t, 2)) # + (1/3 * Ts**3 * np.linalg.matrix_power(F_t,3))
     return sigma_k
 
 
@@ -329,7 +333,7 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
     ######################################################
 
-    N = Nm - Nw - Ngg - N_gyro
+    N = Nm - Nw - Ngg + N_gyro
 
     for _ in range(n):    
         k1 = h*((np.linalg.inv(Inertia) @ N)) 
@@ -342,6 +346,8 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
 
     angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
     angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+
+    y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
     return y, angular_momentum
 
@@ -366,7 +372,11 @@ def rungeKutta_q(w_bo, x0, y0, x, h):
 
         x0 = x0 + h; 
     
-    y = y/np.linalg.norm(y)
+    norm_y = np.linalg.norm(y)
+    y = y/norm_y
+    
+    if np.isnan(y).any() or (y == 0).all():
+        print("Break")
 
     return y
 

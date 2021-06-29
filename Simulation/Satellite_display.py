@@ -13,11 +13,11 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from pathlib import Path
 
-zoom_out_factor = 3
+zoom_out_factor = 2
 
 class ProjectionViewer:
     """ Displays 3D objects on a Pygame screen """
-    def __init__(self, width, height, sat_body):
+    def __init__(self, width, height, sat_body, number_of_satellites = 1):
         self.Radius_earth = SET_PARAMS.Radius_earth/1000
         self.fault = "None"
         self.fig = plt.figure()
@@ -39,8 +39,11 @@ class ProjectionViewer:
         self.angle = 0
         self.step = 0
         self.sun_in_view = False
+        self.current_positions = [None] * number_of_satellites
+        self.number_of_satellites = number_of_satellites
+        self.cmap = matplotlib.cm.get_cmap('nipy_spectral')
 
-    def run(self,w, q, A, r,sun_in_view):
+    def run(self,w, q, A, r,sun_in_view, only_positions = False, sat_num = 1):
         """ Create a pygame screen until it is closed. """
         running = True
         loopRate = 50
@@ -49,65 +52,66 @@ class ProjectionViewer:
             if event.type == pygame.QUIT:
                 running = False
         self.clock.tick(loopRate)
-        self.display(q,A,r,sun_in_view)
+        self.display(q,A,r,sun_in_view, only_positions, sat_num)
         pygame.display.flip()
 
     def stop(self):
         pygame.quit()
         #sys.exit()
 
-    def display(self,q,A,r,sun_in_view):
+    def display(self,q,A,r,sun_in_view, only_positions, sat_num):
         """ Draw the wireframes on the screen. """
         self.screen.fill(self.background)
 
-        # Get the current attitude
-        yaw, pitch, roll = self.sat_body.getAttitude(q)
-        self.messageDisplay("Yaw: %.1f" % yaw,
-                            self.screen.get_width()*0.75,
-                            self.screen.get_height()*0,
-                            (220, 20, 60))      # Crimson
-        self.messageDisplay("Pitch: %.1f" % pitch,
-                            self.screen.get_width()*0.75,
-                            self.screen.get_height()*0.05,
-                            (0, 255, 255))     # Cyan
-        self.messageDisplay("Roll: %.1f" % roll,
-                            self.screen.get_width()*0.75,
-                            self.screen.get_height()*0.1,
-                            (65, 105, 225))    # Royal Blue
+        if not only_positions:
+            # Get the current attitude
+            yaw, pitch, roll = self.sat_body.getAttitude(q)
+            self.messageDisplay("Yaw: %.1f" % yaw,
+                                self.screen.get_width()*0.75,
+                                self.screen.get_height()*0,
+                                (220, 20, 60))      # Crimson
+            self.messageDisplay("Pitch: %.1f" % pitch,
+                                self.screen.get_width()*0.75,
+                                self.screen.get_height()*0.05,
+                                (0, 255, 255))     # Cyan
+            self.messageDisplay("Roll: %.1f" % roll,
+                                self.screen.get_width()*0.75,
+                                self.screen.get_height()*0.1,
+                                (65, 105, 225))    # Royal Blue
 
-        # Transform nodes to perspective view
-        dist = 5
-        pvNodes = []
-        pvDepth = []
-        for node in self.sat_body.nodes:
-            point = [node.x, node.y, node.z]
-            newCoord = self.sat_body.rotatePoint(point, q)
-            comFrameCoord = self.sat_body.convertToComputerFrame(newCoord)
-            pvNodes.append(self.projectOthorgraphic(comFrameCoord[0], comFrameCoord[1], comFrameCoord[2],
-                                                    self.screen.get_width(), self.screen.get_height(),
-                                                    70, pvDepth))
-            """
-            pvNodes.append(self.projectOnePointPerspective(comFrameCoord[0], comFrameCoord[1], comFrameCoord[2],
-                                                           self.screen.get_width(), self.screen.get_height(),
-                                                           5, 10, 30, pvDepth))
-            """
+            # Transform nodes to perspective view
+            dist = 5
+            pvNodes = []
+            pvDepth = []
+            for node in self.sat_body.nodes:
+                point = [node.x, node.y, node.z]
+                newCoord = self.sat_body.rotatePoint(point, q)
+                comFrameCoord = self.sat_body.convertToComputerFrame(newCoord)
+                pvNodes.append(self.projectOthorgraphic(comFrameCoord[0], comFrameCoord[1], comFrameCoord[2],
+                                                        self.screen.get_width(), self.screen.get_height(),
+                                                        70, pvDepth))
+                """
+                pvNodes.append(self.projectOnePointPerspective(comFrameCoord[0], comFrameCoord[1], comFrameCoord[2],
+                                                            self.screen.get_width(), self.screen.get_height(),
+                                                            5, 10, 30, pvDepth))
+                """
 
-        # Calculate the average Z values of each face.
-        avg_z = []
-        for face in self.sat_body.faces:
-            n = pvDepth
-            z = (n[face.nodeIndexes[0]] + n[face.nodeIndexes[1]] +
-                 n[face.nodeIndexes[2]] + n[face.nodeIndexes[3]]) / 4.0
-            avg_z.append(z)
-        # Draw the faces using the Painter's algorithm:
-        for idx, val in sorted(enumerate(avg_z), key=itemgetter(1)):
-            face = self.sat_body.faces[idx]
-            pointList = [pvNodes[face.nodeIndexes[0]],
-                         pvNodes[face.nodeIndexes[1]],
-                         pvNodes[face.nodeIndexes[2]],
-                         pvNodes[face.nodeIndexes[3]]]
-            pygame.draw.polygon(self.screen, face.color, pointList)
-        self.plot(r,sun_in_view)
+            # Calculate the average Z values of each face.
+            avg_z = []
+            for face in self.sat_body.faces:
+                n = pvDepth
+                z = (n[face.nodeIndexes[0]] + n[face.nodeIndexes[1]] +
+                    n[face.nodeIndexes[2]] + n[face.nodeIndexes[3]]) / 4.0
+                avg_z.append(z)
+            # Draw the faces using the Painter's algorithm:
+            for idx, val in sorted(enumerate(avg_z), key=itemgetter(1)):
+                face = self.sat_body.faces[idx]
+                pointList = [pvNodes[face.nodeIndexes[0]],
+                            pvNodes[face.nodeIndexes[1]],
+                            pvNodes[face.nodeIndexes[2]],
+                            pvNodes[face.nodeIndexes[3]]]
+                pygame.draw.polygon(self.screen, face.color, pointList)
+        self.plot(r,sun_in_view, sat_num, only_positions)
 
     # One vanishing point perspective view algorithm
     def projectOnePointPerspective(self, x, y, z, win_width, win_height, P, S, scaling_constant, pvDepth):
@@ -143,31 +147,47 @@ class ProjectionViewer:
         textRect.topleft = (x, y)
         self.screen.blit(textSurface, textRect)
 
-    def plot(self,r,sun_in_view):
+    def plot(self,r,sun_in_view, sat_num, positions_only = False):
         if self.sun_in_view != sun_in_view or self.step == 0:
             u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
             x = np.cos(u)*np.sin(v)*(self.Radius_earth)
             y = np.sin(u)*np.sin(v)*(self.Radius_earth)
             z = np.cos(v)*(self.Radius_earth)
             if sun_in_view:
-                self.ax.plot_wireframe(x, y, z, color="y", alpha = 0.1)
+                self.ax.plot_wireframe(x, y, z, color="y", alpha = 0.2)
             else:
-                self.ax.plot_wireframe(x, y, z, color="b", alpha = 0.1)
+                self.ax.plot_wireframe(x, y, z, color="b", alpha = 0.2)
             self.sun_in_view = sun_in_view
         
         self.step += 1
-        self.position_.append(r)
-        position = np.array((self.position_))
-        x = position[:,0]
-        y = position[:,1]
-        z = position[:,2]
-        if self.step%100 == 0:
-            self.position_ = self.position_[int(len(self.position_)/2):-1]
-        #self.ax.plot(x, y, z, color="k")
-        if self.fault == "None":
-            self.ax.plot(x[-1],y[-1],z[-1], color="b", marker=".", alpha = 0.1)
+
+        if positions_only:
+            self.current_positions[sat_num] = r
+            i = 0
+            for sat_pos in self.current_positions:
+                i += 1
+                try:
+                    position = np.array((sat_pos))
+                    x = position[0]
+                    y = position[1]
+                    z = position[2]
+                    self.ax.plot(x,y,z, color=self.cmap(i/self.number_of_satellites), marker=".", alpha = 0.1)
+                except:
+                    pass
+
         else:
-            self.ax.plot(x[-1],y[-1],z[-1], color="r", marker=".", alpha = 0.05)
+            self.position_.append(r)
+            position = np.array((self.position_))
+            x = position[:,0]
+            y = position[:,1]
+            z = position[:,2]
+            if self.step%100 == 0:
+                self.position_ = self.position_[int(len(self.position_)/2):-1]
+            #self.ax.plot(x, y, z, color="k")
+            if self.fault == "None":
+                self.ax.plot(x[-1],y[-1],z[-1], color="b", marker=".", alpha = 0.1)
+            else:
+                self.ax.plot(x[-1],y[-1],z[-1], color="r", marker=".", alpha = 0.05)
 
         self.canvas = agg.FigureCanvasAgg(self.fig)
         self.canvas.draw()

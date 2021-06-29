@@ -3,7 +3,7 @@ import Simulation.Controller as Controller
 from Simulation.Disturbances import Disturbances
 import Simulation.Parameters as Parameters
 SET_PARAMS = Parameters.SET_PARAMS 
-from Simulation.Sensors import Sensors
+from Simulation.Constellation_sensors import Sensors
 import matplotlib.pyplot as plt
 import Simulation.Quaternion_functions as Quaternion_functions
 import time
@@ -17,6 +17,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from Simulation.Kalman_filter import RKF
 from Simulation.Extended_KF import EKF
+import Simulation.Constellation as Constellation
 
 Fault_names_to_num = SET_PARAMS.Fault_names
 
@@ -57,11 +58,11 @@ def rungeKutta_h(x0, angular, x, h, N_control):
 
 class Dynamics:
     # Initiate initial parameters for the beginning of each orbit set (fault)
-    def __init__(self, seed):
+    def __init__(self, seed, s_list, t_list, J_t, fr):
         self.seed = seed
         self.np_random = np.random
         self.np_random.seed(seed)                   # Ensures that every fault parameters are implemented with different random seeds
-        self.sense = Sensors()
+        self.sense = Sensors(s_list, t_list, J_t, fr)
         self.dist = Disturbances()                  # Disturbances of the simulation
         self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
         self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
@@ -478,22 +479,22 @@ class Dynamics:
         return self.w_bi, self.q, self.A_ORC_to_SBC, self.r_EIC, self.sun_in_view
 
     def update(self):
-        self.Orbit_Data["Magnetometer"].append(self.B)
-        self.Orbit_Data["Sun"].append(self.S_b[:,0])
-        self.Orbit_Data["Earth"].append(self.r_sat_sbc)
-        self.Orbit_Data["Star"].append(self.star_tracker_vector_measured)
-        self.Orbit_Data["Angular momentum of wheels"].append(self.angular_momentum[:,0])
-        self.Orbit_Data["Angular velocity of satellite"].append(self.w_bi[:,0])
-        self.Orbit_Data["Sun in view"].append(self.sun_in_view)
+        self.Orbit_Data["Magnetometer"] = self.B
+        self.Orbit_Data["Sun"] = self.S_b[:,0]
+        self.Orbit_Data["Earth"] = self.r_sat_sbc
+        self.Orbit_Data["Star"] = self.star_tracker_vector_measured
+        self.Orbit_Data["Angular momentum of wheels"] = self.angular_momentum[:,0]
+        self.Orbit_Data["Angular velocity of satellite"] = self.w_bi[:,0]
+        self.Orbit_Data["Sun in view"] = self.sun_in_view
         if self.sun_in_view == False and (self.fault == "Catastrophic_sun" or self.fault == "Erroneous"):
-            self.Orbit_Data["Current fault"].append("None")
+            self.Orbit_Data["Current fault"] = "None"
             temp = list(self.zeros)
             temp[Fault_names_to_num["None"] - 1] = 1
-            self.Orbit_Data["Current fault numeric"].append(temp)
-            self.Orbit_Data["Current fault binary"].append(0)
+            self.Orbit_Data["Current fault numeric"] = temp
+            self.Orbit_Data["Current fault binary"] = 0
         else:
-            self.Orbit_Data["Current fault"].append(self.fault)
+            self.Orbit_Data["Current fault"] = self.fault
             temp = list(self.zeros)
             temp[Fault_names_to_num[self.fault] - 1] = 1
-            self.Orbit_Data["Current fault numeric"].append(temp)
-            self.Orbit_Data["Current fault binary"].append(0 if self.fault == "None" else 1)
+            self.Orbit_Data["Current fault numeric"] = temp
+            self.Orbit_Data["Current fault binary"] = 0 if self.fault == "None" else 1

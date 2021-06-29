@@ -259,27 +259,27 @@ class SET_PARAMS:
     # Magnetometer
     Magnetometer_noise = 0.001         #standard deviation of magnetometer noise in Tesla
 
-    #################################################################################################################
-
     # Earth sensor
     Earth_sensor_position = np.array(([0, 0, -1])) # x, y, en z
     Earth_sensor_FOV = 180 # Field of view in degrees
     Earth_sensor_angle = Earth_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Earth_noise = 0.01                  #standard deviation away from where the actual earth is
 
-    #################################################################################################################
     # Fine Sun sensor
     Fine_sun_sensor_position = np.array(([1, 0, 0])) # x, y, en z 
     Fine_sun_sensor_FOV = 180 # Field of view in degrees
     Fine_sun_sensor_angle = Fine_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Fine_sun_noise = 0.001                   #standard deviation away from where the actual sun is
 
-    #################################################################################################################
     # Coarse Sun Sensor
     Coarse_sun_sensor_position = np.array(([-1, 0, 0])) # x, y, en z 
     Coarse_sun_sensor_FOV = 180 # Field of view in degrees
     Coarse_sun_sensor_angle = Coarse_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Coarse_sun_noise = 0.01 #standard deviation away from where the actual sun is
+
+    # Constellation parameters
+    Constellation = False
+    Number_of_satellites = 1
 
     #################################################################################################################
 
