@@ -44,21 +44,17 @@ class EKF():
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.diag([1, 1, 1, 1, 1, 1, 1]) ** 2
-        
+        self.Q_k = np.diag([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]) # ** 2
+        self.Q_k = np.eye(7)
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
         self.dt = SET_PARAMS.Ts
         self.dh = self.dt/10
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt, wbi, q):
         # Model update
         self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
-
-        # Prints error if nan in self.q
-        if np.isnan(self.q).any():
-            print("nan Value in Quaternion matrix")
         
         # Calculates the ORC to SBC transformation_matrix
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
@@ -71,7 +67,7 @@ class EKF():
 
         # The updated estimation of the quaternion matrix (already normalized)
         self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
-
+        
         # After both the quaternions and the angular velocity 
         # is calculated, the state vector can be calculated
         x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
@@ -117,6 +113,10 @@ class EKF():
         self.q = self.q/np.linalg.norm(self.q)
         self.x_k[3:] = self.q
         self.q = self.q[:,0]
+
+        # Prints error if nan in self.q
+        if np.isnan(self.q).any() or (self.q == 0).all():
+            print("nan Value in Quaternion matrix")
 
         # If any value within the state vector is equal to nan
         if np.isnan(self.x_k).any():
@@ -303,7 +303,7 @@ def rungeKutta_h(x0, angular, x, h, N_control):
         k1 = h*(angular_momentum_derived) 
         k2 = h*((angular_momentum_derived) + 0.5*k1) 
         k3 = h*((angular_momentum_derived) + 0.5*k2) 
-        k4 = h*((angular_momentum_derived) + 0.5*k3) 
+        k4 = h*((angular_momentum_derived) + k3) 
 
         y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
 
@@ -320,9 +320,7 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     ######################################################
     # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
     ######################################################
-
-    angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
-    angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+    N_gyro = w * (Inertia @ w + angular_momentum)
 
     n = int(np.round((x - x0)/h))
     y = w
@@ -331,18 +329,19 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
     ######################################################
 
-    N_disturbance = Ngg              
-    N_control = Nm - Nw
-    N = N_control + N_disturbance
+    N = Nm - Nw - Ngg - N_gyro
 
     for _ in range(n):    
         k1 = h*((np.linalg.inv(Inertia) @ N)) 
         k2 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k1) 
         k3 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k2) 
-        k4 = h*((np.linalg.inv(Inertia) @ N) + 0.5*k3) 
+        k4 = h*((np.linalg.inv(Inertia) @ N) + k3) 
         y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
         
         x0 = x0 + h; 
+
+    angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
+    angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
     return y, angular_momentum
 
@@ -361,7 +360,7 @@ def rungeKutta_q(w_bo, x0, y0, x, h):
         k1 = h*(0.5 * W @ y)
         k2 = h*(0.5 * W @ (y + 0.5*k1))
         k3 = h*(0.5 * W @ (y + 0.5*k2))
-        k4 = h*(0.5 * W @ (y + 0.5*k3))
+        k4 = h*(0.5 * W @ (y + k3))
 
         y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
 

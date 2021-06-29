@@ -47,7 +47,7 @@ def rungeKutta_h(x0, angular, x, h, N_control):
         k1 = h*(angular_momentum_derived) 
         k2 = h*((angular_momentum_derived) + 0.5*k1) 
         k3 = h*((angular_momentum_derived) + 0.5*k2) 
-        k4 = h*((angular_momentum_derived) + 0.5*k3) 
+        k4 = h*((angular_momentum_derived) + k3) 
 
         y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
 
@@ -83,7 +83,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor", "Sun_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -218,7 +218,6 @@ class Dynamics:
         N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.angular_momentum)
 
         N_gyro = w * (self.Inertia @ w + self.angular_momentum)
-        N_gyro = np.zeros(N_gyro.shape)
 
         if "RW" in self.fault:
             N_control_wheel = self.Reaction_wheel_fault.Electronics_of_RW_failure(N_control_wheel)
@@ -251,7 +250,7 @@ class Dynamics:
         # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
         ######################################################
 
-        N_disturbance = Ngg + N_aero + N_rw - N_gyro                
+        N_disturbance = Ngg + N_aero + N_rw + N_gyro                
         N_control = N_control_magnetic - N_control_wheel
         N = N_control + N_disturbance
 
@@ -259,7 +258,7 @@ class Dynamics:
             k1 = h*((np.linalg.inv(self.Inertia) @ N)) 
             k2 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k1) 
             k3 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k2) 
-            k4 = h*((np.linalg.inv(self.Inertia) @ N) + 0.5*k3) 
+            k4 = h*((np.linalg.inv(self.Inertia) @ N) + k3) 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
             
             x0 = x0 + h; 
@@ -291,7 +290,7 @@ class Dynamics:
             k1 = h*(0.5 * W @ y)
             k2 = h*(0.5 * W @ (y + 0.5*k1))
             k3 = h*(0.5 * W @ (y + 0.5*k2))
-            k4 = h*(0.5 * W @ (y + 0.5*k3))
+            k4 = h*(0.5 * W @ (y + k3))
 
             y = y + (1.0/6.0)*(k1 + 2*k2 + 2*k3 + k4)
     
@@ -437,7 +436,7 @@ class Dynamics:
 
                 if not (v_ORC_k == 0.0).all():
                     # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
+                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt, self.w_bi, self.q)
                     self.q = x[3:]
                     self.w_bi = x[:3]
 
