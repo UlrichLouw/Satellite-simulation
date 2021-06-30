@@ -37,7 +37,6 @@ class Sensors:
         if (theta_e > theta_s) and (theta < (theta_e-theta_s)):
             self.in_sun_view = False
             S_EIC = np.zeros((3,1))
-            return S_EIC, self.in_sun_view 
         else:
             self.in_sun_view = True
         return S_EIC, self.in_sun_view     #in m

@@ -83,7 +83,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor", "Sun_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -250,7 +250,7 @@ class Dynamics:
         # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
         ######################################################
 
-        N_disturbance = Ngg + N_aero + N_rw + N_gyro                
+        N_disturbance = Ngg + N_aero + N_rw - N_gyro                
         N_control = N_control_magnetic - N_control_wheel
         N = N_control + N_disturbance
 
@@ -272,9 +272,9 @@ class Dynamics:
             print("Break")
 
         self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
-        self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+        #self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
-        y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
+        #y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
         return y
 
@@ -438,13 +438,13 @@ class Dynamics:
                 v_measured_k = np.reshape(v["measured"],(3,1))
                 self.EKF.measurement_noise = v["noise"]
 
-                if not (v_ORC_k == 0.0).all():
-                    # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                    x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.dt)
-                    self.q = x[3:]
-                    self.w_bi = x[:3]
+                #! if not (v_ORC_k == 0.0).all():
+                # If the measured vector is equal to 0 then the sensor is not able to view the desired measurement
+                x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.t)
+                self.q = x[3:]
+                self.w_bi = x[:3]
 
-        if SET_PARAMS.Kalman_filter_use == "RKF":
+        elif SET_PARAMS.Kalman_filter_use == "RKF":
             for sensor in self.sensors_kalman:
                 # Step through both the sensor noise and the sensor measurement
                 # vector is the vector of the sensor's measurement
@@ -462,10 +462,10 @@ class Dynamics:
                 v_measured_k = np.reshape(v["measured"],(3,1))
                 self.EKF.measurement_noise = v["noise"]
 
-                if not (v_ORC_k == 0.0).all():
-                    # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
-                    x = self.RKF.Kalman_update(v_measured_k, self.Nm, self.Nw, self.Ngyro)
-                    self.w_bi = x
+                #! if not (v_ORC_k == 0.0).all():
+                # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
+                x = self.RKF.Kalman_update(v_measured_k, self.Nm, self.Nw, self.Ngyro, self.t)
+                self.w_bi = x
                 
 
         if np.isnan(self.w_bi).any():

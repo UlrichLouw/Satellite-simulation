@@ -84,7 +84,7 @@ class Dynamics:
         self.sun_noise = SET_PARAMS.Fine_sun_noise
         self.RKF = RKF()                            # Rate Kalman_filter
         self.EKF = EKF()                            # Extended Kalman_filter
-        self.sensors_kalman = ["Earth_Sensor", "Sun_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
+        self.sensors_kalman = ["Earth_Sensor", "Star_tracker"] #"Earth_Sensor", "Sun_Sensor", "Star_tracker"
 
         ####################################################
         #  THE ORBIT_DATA DICTIONARY IS USED TO STORE ALL  #
@@ -251,7 +251,7 @@ class Dynamics:
         # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
         ######################################################
 
-        N_disturbance = Ngg + N_aero + N_rw + N_gyro                
+        N_disturbance = Ngg + N_aero + N_rw - N_gyro                
         N_control = N_control_magnetic - N_control_wheel
         N = N_control + N_disturbance
 
@@ -273,9 +273,9 @@ class Dynamics:
             print("Break")
 
         self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
-        self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+        #self.angular_momentum = np.clip(self.angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
-        y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
+        #y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
         return y
 

@@ -44,95 +44,154 @@ class EKF():
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.linalg.norm(np.eye(7))/1000000
+        self.Q_k = np.linalg.norm(np.eye(7))/10
 
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
-        self.dt = SET_PARAMS.Ts
-        self.dh = self.dt/10
+        self.t = SET_PARAMS.time
+        self.dt = SET_PARAMS.Ts                     # Time step
+        self.dh = self.dt/10                        # Size of increments for Runga-kutta method
 
 
-    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt):
-        # Model update
-        self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, dt, self.dh, self.angular_momentum, Nw, Nm, Ngg)
+    def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, t):
+        self.create_self_variables(vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg)
+
+        if self.t != t or self.t == SET_PARAMS.time:
+            # Model update
+            self.Model_update()
+            self.t = t
+
+        self.Peripherals_update()
+
+        self.Measurement_update()
+
+        return self.x_k
+
+    def Model_update(self):
+        self.w_bi, self.angular_momentum = rungeKutta_w(self.Inertia, 0, self.w_bi, self.dt, self.dh, self.angular_momentum, self.Nw, self.Nm, self.Ngg)
         
-        # Calculates the ORC to SBC transformation_matrix
+        ###################################################
+        # CALCULATES THE ORC TO SBC TRANSFORMATION_MATRIX #
+        ###################################################
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
 
-        # Calculates the angular velocity for the satelite in ORC frame
+        #################################################################
+        # CALCULATES THE ANGULAR VELOCITY FOR THE SATELITE IN ORC FRAME #
+        #################################################################
         self.w_bo = self.w_bi - self.A_ORC_to_SBC @ np.array(([0],[-self.wo],[0]))
 
-        # Provides the matrix that is used for multiple calculations from self.w_bo
-        omega_k = omega_k_function(self.w_bo)
+        #############################################################################
+        # PROVIDES THE MATRIX THAT IS USED FOR MULTIPLE CALCULATIONS FROM SELF.W_BO #
+        #############################################################################
+        self.omega_k = omega_k_function(self.w_bo)
 
-        # The updated estimation of the quaternion matrix (already normalized)
-        self.q = rungeKutta_q(self.w_bo, 0, self.q, dt, self.dh)
-        
-        # Prints error if nan in self.q
-        if np.isnan(self.q).any() or (self.q == 0).all():
-            print("nan Value in Quaternion matrix")
+        ########################################################################
+        # THE UPDATED ESTIMATION OF THE QUATERNION MATRIX (ALREADY NORMALIZED) #
+        ########################################################################
+        self.q = rungeKutta_q(self.w_bo, 0, self.q, self.dt, self.dh)
 
-        # After both the quaternions and the angular velocity 
-        # is calculated, the state vector can be calculated
-        x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+        #################################
+        # PRINTS ERROR IF NAN IN SELF.Q #
+        #################################  
+        error_message(self.q)
 
-        # The continuous system perturbation (Jacobian matrix F_t)
-        F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.q, omega_k, self.A_ORC_to_SBC)
+        #######################################################
+        # AFTER BOTH THE QUATERNIONS AND THE ANGULAR VELOCITY #
+        #  IS CALCULATED, THE STATE VECTOR CAN BE CALCULATED  #
+        #######################################################
+        self.x_k_estimated = np.concatenate((self.w_bi.T, np.reshape(self.q,(1,4))), axis = 1).T
+    
+
+    def Peripherals_update(self):
+        ############################################################
+        # THE CONTINUOUS SYSTEM PERTURBATION (JACOBIAN MATRIX F_T) #
+        ############################################################
+        F_t, TL, TR, BL, BR = F_t_function(self.angular_momentum, self.w_bi, self.q, self.omega_k, self.A_ORC_to_SBC)
         T11, T12, T21, T22 = TL, TR, BL, BR
 
-        # The discrete system perturbation
+        ####################################
+        # THE DISCRETE SYSTEM PERTURBATION #
+        ####################################
         self.sigma_k = sigma_k_function(F_t)
 
-        # Calculating the system noise covariance matrix. This matrix 
-        # can either be fixed at initiation or calculated based on the current F_t and 
-        # the noise of the angular velocity (self.Q_wt)
-        # self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
+        ################################################################################
+        #         CALCULATING THE SYSTEM NOISE COVARIANCE MATRIX. THIS MATRIX          #
+        # CAN EITHER BE FIXED AT INITIATION OR CALCULATED BASED ON THE CURRENT F_T AND #
+        #                THE NOISE OF THE ANGULAR VELOCITY (SELF.Q_WT)                 #
+        ################################################################################
+        #! self.Q_k = system_noise_covariance_matrix_discrete(T11, T12, T21, T22, self.Q_wt)
 
-        # Calculate the measurement perturbation matrix from the 
-        # estimated state vector (Jacobian matrix H_k)   
-        H_k = Jacobian_H(self.q, vmodel_k)
+        ##########################################################
+        # CALCULATE THE MEASUREMENT PERTURBATION MATRIX FROM THE #
+        #   ESTIMATED STATE VECTOR (JACOBIAN MATRIX SELF.H_K)    #
+        ##########################################################
+        self.H_k = Jacobian_H(self.q, self.vmodel_k)
 
-        # Calculate the estimated state covariance matrix 
-        P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
+        ###################################################
+        # CALCULATE THE ESTIMATED STATE COVARIANCE MATRIX #
+        ###################################################
+        self.P_k_estimated = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
-        # Calculates the ORC to SBC transformation_matrix
+        ###################################################
+        # CALCULATES THE ORC TO SBC TRANSFORMATION_MATRIX #
+        ###################################################
         self.A_ORC_to_SBC = Transformation_matrix(self.q)
 
-        # Calculate the difference between the modelled and measured vector
-        e_k = e_k_function(vmeas_k, self.A_ORC_to_SBC, vmodel_k)
+        #####################################################################
+        # CALCULATE THE DIFFERENCE BETWEEN THE MODELLED AND MEASURED VECTOR #
+        #####################################################################
+        self.e_k = e_k_function(self.vmeas_k, self.A_ORC_to_SBC, self.vmodel_k)
 
-        if np.linalg.det(H_k @ P_k_estimated @ H_k.T + self.R_k) == 0:
+
+    def Measurement_update(self):
+        if np.linalg.det(self.H_k @ self.P_k_estimated @ self.H_k.T + self.R_k) == 0:
             print("break")
+        #################################
+        # CALCULATE THE GAIN MATRIX K_K #
+        #################################
+        K_k = Jacobian_K(self.P_k_estimated, self.H_k, self.R_k)
 
-        # Calculate the gain matrix K_k
-        K_k = Jacobian_K(P_k_estimated, H_k, self.R_k)
-
-        if np.isnan(K_k).any():
-            print("Break")
+        error_message(K_k)
         
-        self.x_k = state_measurement_update(x_k_estimated, K_k, e_k)
+        self.x_k = state_measurement_update(self.x_k_estimated, K_k, self.e_k)
 
-        # Normalize the quaternion matrix
+        ###################################
+        # NORMALIZE THE QUATERNION MATRIX #
+        ###################################
         self.q = self.x_k[3:]
         self.q = self.q/np.linalg.norm(self.q)
         self.x_k[3:] = self.q
         self.q = self.q[:,0]
 
-        # Prints error if nan in self.q
-        if np.isnan(self.q).any() or (self.q == 0).all():
-            print("nan Value in Quaternion matrix")
+        #################################
+        # PRINTS ERROR IF NAN IN SELF.Q #
+        #################################
+        error_message(self.q)
 
-        # If any value within the state vector is equal to nan
-        if np.isnan(self.x_k).any():
-            print("Break")
+        ########################################################
+        # IF ANY VALUE WITHIN THE STATE VECTOR IS EQUAL TO NAN #
+        ########################################################
+        error_message(self.x_k)
         
-        # Calculate the measurement perturbate estimated 
-        H_k = Jacobian_H(self.q, vmodel_k)
+        ##################################################
+        # CALCULATE THE MEASUREMENT PERTURBATE ESTIMATED #
+        ##################################################
+        self.H_k = Jacobian_H(self.q, self.vmodel_k)
 
-        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_estimated, self.R_k)
+        self.P_k = update_state_covariance_matrix(K_k, self.H_k, self.P_k_estimated, self.R_k)
 
-        return self.x_k
 
+    def create_self_variables(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg):
+        self.Nw = Nw
+        self.Nm = Nm
+        self.Ngg = Ngg
+        self.vmodel_k = vmodel_k
+        self.Ngyro = Ngyro
+        self.vmeas_k = vmeas_k
+
+def error_message(variable):
+    if np.isnan(variable).any():
+        print("Break")    
 
 
 def system_noise_covariance_matrix_discrete(T11, T12, T21, T22, Q_wt):
@@ -197,8 +256,8 @@ def state_model_update(delta_angular, x_prev):
     return x_prev + (Ts/2) * (3 * delta_angular - delta_angular)
 
 
-def state_model_update_quaternion(q, kq, sigma_k, w_ob):
-    return ((np.cos(kq) * np.eye(4) + (1/w_ob)*np.sin(kq)*sigma_k) @ q).flatten()
+def state_model_update_quaternion(q, kq, omega_k, w_ob):
+    return ((np.cos(kq) * np.eye(4) + (1/w_ob)*np.sin(kq)*omega_k) @ q).flatten()
 
 
 def Jacobian_K(P_k, H_k, R_k):
@@ -333,7 +392,7 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
     # ALL THE DISTURBANCE TORQUES ADDED TO THE SATELLITE #
     ######################################################
 
-    N = Nm - Nw - Ngg + N_gyro
+    N = Nw - Nm - Ngg - N_gyro
 
     for _ in range(n):    
         k1 = h*((np.linalg.inv(Inertia) @ N)) 
@@ -345,9 +404,9 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
         x0 = x0 + h; 
 
     angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
-    angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
+    #angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
 
-    y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
+    #y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
     return y, angular_momentum
 

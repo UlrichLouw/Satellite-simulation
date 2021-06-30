@@ -154,6 +154,8 @@ class SET_PARAMS:
     wn = 1
     Kp = 0.7 * wn**2 
     Kd = 1 * wn * 0.707
+    Kp = Kp/10000
+    Kd = Kd/10000
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
     Kalman_filter_use = True

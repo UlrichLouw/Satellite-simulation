@@ -19,18 +19,24 @@ class RKF():
         self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
         self.Q_k = system_noise_covariance_matrix(self.angular_noise)
 
-    def Kalman_update(self, v_k, Nm, Nw, Ngyro):
+        self.t = SET_PARAMS.time
+
+    def Kalman_update(self, v_k, Nm, Nw, Ngyro, t):
         # Model update
         H_k = Jacobian_H(v_k)
-        w_b = delta_angular(self.Inertia, Nm, Nw, Ngyro)
-        x_k_update = state_model_update(w_b, self.x_k)
-        P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
+
+        if self.t != t or self.t == SET_PARAMS.time:
+            # Model update
+            self.t = t     
+            self.w_b = delta_angular(self.Inertia, Nm, Nw, Ngyro)
+            self.x_k_update = state_model_update(self.w_b, self.x_k)
+            self.P_k_update = state_covariance_matrix(self.Q_k, self.P_k, self.sigma_k)
 
         # Measurement update
-        y_k = measurement_state_y(H_k, w_b, self.m_k)
-        K_k = Jacobian_K(P_k_update, H_k, self.R_k)
-        self.P_k = update_state_covariance_matrix(K_k, H_k, P_k_update)
-        self.x_k = state_measurement_update(x_k_update, K_k, y_k, H_k)
+        y_k = measurement_state_y(H_k, self.w_b, self.m_k)
+        K_k = Jacobian_K(self.P_k_update, H_k, self.R_k)
+        self.P_k = update_state_covariance_matrix(K_k, H_k, self.P_k_update)
+        self.x_k = state_measurement_update(self.x_k_update, K_k, y_k, H_k)
         if (self.x_k == np.nan).any():
             print("break")
         return self.x_k

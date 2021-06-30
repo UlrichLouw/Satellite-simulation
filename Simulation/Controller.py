@@ -15,10 +15,10 @@ class Control:
         self.first = True
         self.mode = SET_PARAMS.Mode
 
-    def control(self, w, q, Inertia, B, error = False):
+    def control(self, w, q, Inertia, B, angular_momentum):
         if self.mode == "Nominal":   # Normal operation
             N_magnet = np.zeros((3,1))
-            N_wheel = self.control_wheel(w, q, Inertia)
+            N_wheel = self.control_wheel(w, q, Inertia, angular_momentum)
 
         elif self.mode == "Safe":    # Detumbling mode
             N_magnet = self.magnetic_torquers(B, w)
@@ -26,10 +26,11 @@ class Control:
     
         return N_magnet, N_wheel
 
-    def control_wheel(self, w, q, Inertia):
+    def control_wheel(self, w, q, Inertia, angular_momentum):
         q_error = Quaternion_functions.quaternion_error(q, self.q_ref)
         w_error = self.w_ref - w
-        N = np.clip(np.reshape((self.Kp * np.matmul(Inertia, q_error[0:3])),(3,1)) - self.Kd * np.matmul(Inertia, w_error), -self.N_max,self.N_max)
+        N = np.reshape((self.Kp * Inertia @ q_error[0:3]),(3,1)) - self.Kd * Inertia @ w_error - w * (Inertia @ w + angular_momentum)
+        N = np.clip(N, -self.N_max,self.N_max)
         return N
     
     def magnetic_torquers(self, B, w):
@@ -54,3 +55,7 @@ class Control:
         N = np.reshape(np.matmul(M,np.reshape(B,(1,3)))[1,:],(3,1))
         N = np.clip(N, -SET_PARAMS.M_magnetic_max, SET_PARAMS.M_magnetic_max)
         return N
+    
+    def reinitialize(self):
+        self.Kp = SET_PARAMS.Kp
+        self.Kd = SET_PARAMS.Kd
