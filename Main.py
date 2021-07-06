@@ -66,13 +66,14 @@ if __name__ == "__main__":
     # IF THE SAVE AS IS EQUAL TO XLSX, THE THREADING CANNOT #
     #           BE USED TO SAVE CSV FILES                   #     
     #########################################################
-    SET_PARAMS.Display = False
-    SET_PARAMS.save_as = ".csv"
-    SET_PARAMS.Kalman_filter_use = "EKF"
+    SET_PARAMS.Display = True
+    SET_PARAMS.save_as = ".xlsx"
+    SET_PARAMS.Kalman_filter_use = "RKF"
     SET_PARAMS.Number_of_orbits = 10
     SET_PARAMS.skip = 20
-    SET_PARAMS.Number_of_satellites = 100
-    SET_PARAMS.Constellation = True
+    SET_PARAMS.Number_of_satellites = 10
+    SET_PARAMS.Constellation = False
+    SET_PARAMS.k_nearest_satellites = 5
 
     #########################################################
     #   TO ENABLE A CONSTELLATION A CLASS IS CREATED THAT   #
@@ -88,11 +89,8 @@ if __name__ == "__main__":
             Stellar.initiate_satellite(sat_num)
 
         for j in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
-            print(j)
             for sat_num in range(SET_PARAMS.Number_of_satellites):
                 Stellar.satellites[sat_num].run()
-                print(sat_num)
-
 
     elif SET_PARAMS.save_as == ".xlsx":
         FD = Fault_detection.Basic_detection()
@@ -103,13 +101,11 @@ if __name__ == "__main__":
 
             print(SET_PARAMS.Fault_names_values[i+1])
 
-
             if SET_PARAMS.Display:
                 satellite = view.initializeCube(SET_PARAMS.Dimensions)
                 pv = view.ProjectionViewer(1920, 1080, satellite)
             
             for j in range(int(SET_PARAMS.Number_of_orbits*SET_PARAMS.Period/(SET_PARAMS.faster_than_control*SET_PARAMS.Ts)+1)):
-                print(j)
                 w, q, A, r, sun_in_view = D.rotation()
 
                 # Detect faults based on data from Dynamics (D):

@@ -282,6 +282,7 @@ class SET_PARAMS:
     # Constellation parameters
     Constellation = False
     Number_of_satellites = 1
+    k_nearest_satellites = 5
 
     #################################################################################################################
 

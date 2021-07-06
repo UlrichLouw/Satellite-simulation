@@ -140,6 +140,7 @@ class Dynamics:
         #################################################################
 
         if self.sun_in_view:
+            t = self.S_b[:,0]
             angle_difference_fine = Quaternion_functions.rad2deg(np.arccos(np.dot(self.S_b[:,0], SET_PARAMS.Fine_sun_sensor_position)))
             angle_difference_coarse = Quaternion_functions.rad2deg(np.arccos(np.dot(self.S_b[:,0], SET_PARAMS.Coarse_sun_sensor_position)))
             if angle_difference_fine < SET_PARAMS.Fine_sun_sensor_angle:

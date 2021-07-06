@@ -1,6 +1,7 @@
 import numpy as np
 from Simulation.Parameters import SET_PARAMS
 import time
+from Simulation.Disturbances import Disturbances
 
 Ts = SET_PARAMS.Ts
 
@@ -26,7 +27,7 @@ class EKF():
     def __init__(self):
         self.angular_noise = SET_PARAMS.RW_sigma
 
-        self.measurement_noise =  0.1
+        self.measurement_noise =  0.01
 
         self.P_k = SET_PARAMS.P_k
 
@@ -44,13 +45,15 @@ class EKF():
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.linalg.norm(np.eye(7))/10
+        self.Q_k = np.linalg.norm(np.eye(7))
 
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
         self.t = SET_PARAMS.time
-        self.dt = SET_PARAMS.Ts                     # Time step
+        self.faster_than_controller = 1
+        self.dt = Ts/self.faster_than_controller                     # Time step
         self.dh = self.dt/10                        # Size of increments for Runga-kutta method
+        self.dist = Disturbances()
 
 
     def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, t):
@@ -58,11 +61,13 @@ class EKF():
 
         if self.t != t or self.t == SET_PARAMS.time:
             # Model update
-            self.Model_update()
+            for _ in range(self.faster_than_controller):
+                self.Model_update()
+            
             self.t = t
 
         self.Peripherals_update()
-
+        
         self.Measurement_update()
 
         return self.x_k
@@ -182,9 +187,11 @@ class EKF():
 
 
     def create_self_variables(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg):
+        self.A_ORC_to_SBC = Transformation_matrix(self.q)
         self.Nw = Nw
         self.Nm = Nm
         self.Ngg = Ngg
+        self.Ngg = self.dist.Gravity_gradient_func(self.A_ORC_to_SBC) 
         self.vmodel_k = vmodel_k
         self.Ngyro = Ngyro
         self.vmeas_k = vmeas_k

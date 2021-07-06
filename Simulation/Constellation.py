@@ -20,14 +20,16 @@ class Constellation:
         #! The orbit parameters must be designed based on the constellation and number of satellites
         self.inclination_per_sat = 360/number_of_satellites
         self.RAAN_per_sat = 360/number_of_satellites
-        self.a_G0_per_sat = 86400/number_of_satellites
+        self.a_G0_per_sat = 360/number_of_satellites
         if SET_PARAMS.Display:
             display = view.initializeCube(SET_PARAMS.Dimensions)
             self.pv = view.ProjectionViewer(1920, 1080, display, self.number_of_satellites)
         self.satellites = []
+        self.k_nearest_satellites = SET_PARAMS.k_nearest_satellites
     
     def initiate_satellite(self, sat_num):
         sat_init = satellite(self, sat_num)
+        sat_init.initialize()
         sat = multiprocessing.Process(target = sat_init.step)
         self.satellites.append(sat)
 
@@ -37,6 +39,7 @@ class satellite:
         self.sat_num = sat_num
         self.Orbit_parameters()
         self.Dynamics = Dynamics(sat_num, self.s_list, self.t_list, self.J_t, self.fr)
+        self.satellite_angles = np.zeros((self.constellation.number_of_satellites,))
 
     def Orbit_parameters(self):
         ####################
@@ -44,12 +47,12 @@ class satellite:
         ####################
         
         eccentricity = 0.000092                                 # Update eccentricity list
-        inclination = self.constellation.inclination_per_sat*self.sat_num     # degrees
+        inclination = 97 #self.constellation.inclination_per_sat*self.sat_num     # degrees
         Semi_major_axis = 6879.55                               # km The distance from the satellite to the earth + the earth radius
         Height_above_earth_surface = 500e3                      # distance above earth surface
         Scale_height = 8500                                     # scale height of earth atmosphere
         RAAN = self.constellation.RAAN_per_sat*self.sat_num     # Right ascension of the ascending node in radians
-        RAAN = 275*pi/180                                       # Right ascension of the ascending node in radians
+        #RAAN = 275*pi/180                                       # Right ascension of the ascending node in radians
         AP = 0                                                  # argument of perigee
         Re = 6371.2                                             # km magnetic reference radius
         Mean_motion = 15.2355000000                             # rev/day
@@ -91,11 +94,28 @@ class satellite:
         mean_motion_list = str("{:8f}".format(Mean_motion)) + '00'
         Epoch_rev_list = '000009'
         self.t_list = line_and_satellite_number_list + inclination_list + intermediate_list + RAAN_list + intermediate_list_2 + eccentricity_list + perigree_list + intermediate_list_3 + mean_anomaly_list + intermediate_list_4 + mean_motion_list + Epoch_rev_list
-        self.a_G0 = 0 # self.constellation.a_G0_per_sat*self.sat_num
+        self.a_G0 = 0 #self.constellation.a_G0_per_sat*self.sat_num
+
+    def initialize(self):
+        w, q, A, r, sun_in_view = self.Dynamics.rotation()
+        self.constellation.data[self.sat_num] = self.Dynamics.Orbit_Data
+        self.constellation.positions[self.sat_num] = self.Dynamics.sense.position/np.linalg.norm(self.Dynamics.sense.position)
+        if SET_PARAMS.Display:
+            self.constellation.pv.run(w, q, A, r, sun_in_view = True, only_positions = True, sat_num = self.sat_num)
 
     def step(self):
         w, q, A, r, sun_in_view = self.Dynamics.rotation()
         self.constellation.data[self.sat_num] = self.Dynamics.Orbit_Data
-        self.constellation.positions[self.sat_num] = self.Dynamics.sense.position 
+        self.constellation.positions[self.sat_num] = self.Dynamics.sense.position/np.linalg.norm(self.Dynamics.sense.position)
         if SET_PARAMS.Display:
             self.constellation.pv.run(w, q, A, r, sun_in_view = True, only_positions = True, sat_num = self.sat_num)
+
+        for sats in range(self.constellation.number_of_satellites):
+            if sats != self.sat_num:
+                self.satellite_angles[sats] = abs(np.arccos(np.dot(self.constellation.positions[self.sat_num],self.constellation.positions[sats])))
+            else:
+                self.satellite_angles[sats] = 0
+
+        self.nearest_neighbours = np.argpartition(self.satellite_angles, self.constellation.k_nearest_satellites + 1)[:self.constellation.k_nearest_satellites + 1]
+        self.nearest_neighbours = [item for item in self.nearest_neighbours if item != self.sat_num]
+        
