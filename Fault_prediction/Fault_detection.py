@@ -236,12 +236,15 @@ class Encompassing_detection:
         magnetometer_threshold = 0.2
 
     def Per_Timestep(self, args):
+        pass
+        """
         sun, star, earth, angular_momentum = args
 
         self.sun_fault(sun)
         self.star_fault(star)
         self.earth_fault(earth)
         self.angular_momentum_fault(angular_momentum)
+        """
 
     #####################################################
     # IF THE THRESHOLD OF THE SUN VECTOR IS LARGER THAT #

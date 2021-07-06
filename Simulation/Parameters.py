@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import Simulation.Quaternion_functions
 from sgp4.api import jday
 from struct import *
 from scipy import special
@@ -151,11 +150,13 @@ class SET_PARAMS:
     q_ref = np.array(([0, 0, 1, 0])) # initial position of satellite
     time = 1
     Ts = 1 # Time_step
-    wn = 1
-    Kp = 0.7 * wn**2 
+    wn = 90
+    Kp = 1 * wn**2 
     Kd = 1 * wn * 0.707
-    Kp = Kp/10000
-    Kd = Kd/10000
+    #Kp = Kp/50
+    #Kd = Kd/5000
+    Kp = Kp/100000
+    Kd = Kd/1000000
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
     Kalman_filter_use = True
@@ -504,6 +505,15 @@ class Earth_Sensor(Fault_parameters):
 
     def General_sensor_high_noise(self, sensor):
         return sensor*random_size(minimum = Min_high_noise, maximum = Max_high_noise) if self.failure == "General_sensor_high_noise" else sensor
+
+class Angular_Sensor(Fault_parameters):
+    def __init__(self, seed):
+        self.Fault_rate_per_hour = 8.15e-9 * SET_PARAMS.likelyhood_multiplier
+        self.number_of_failures = 1
+        self.failures = {
+            0: "General_sensor_high_noise"
+        }
+        super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
 
 class Star_tracker(Fault_parameters):
     def __init__(self, seed):

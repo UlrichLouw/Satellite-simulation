@@ -4,7 +4,8 @@ import numpy as np
 import Simulation.Quaternion_functions
 from Simulation.Parameters import SET_PARAMS
 from sgp4.api import jday
-from Simulation.Constellation_dynamics import Dynamics
+from Simulation.dynamics import Constellation_Satellites
+from Fault_prediction.Fault_detection import Encompassing_detection
 import multiprocessing
 if SET_PARAMS.Display:
     import Simulation.Satellite_display as view
@@ -38,8 +39,10 @@ class satellite:
         self.constellation = constellation
         self.sat_num = sat_num
         self.Orbit_parameters()
-        self.Dynamics = Dynamics(sat_num, self.s_list, self.t_list, self.J_t, self.fr)
+        self.Dynamics = Constellation_Satellites(sat_num, self.s_list, self.t_list, self.J_t, self.fr)
         self.satellite_angles = np.zeros((self.constellation.number_of_satellites,))
+        self.FD = Encompassing_detection()
+        self.steps = 0
 
     def Orbit_parameters(self):
         ####################
@@ -47,7 +50,7 @@ class satellite:
         ####################
         
         eccentricity = 0.000092                                 # Update eccentricity list
-        inclination = 97 #self.constellation.inclination_per_sat*self.sat_num     # degrees
+        inclination = 60 #self.constellation.inclination_per_sat*self.sat_num     # degrees
         Semi_major_axis = 6879.55                               # km The distance from the satellite to the earth + the earth radius
         Height_above_earth_surface = 500e3                      # distance above earth surface
         Scale_height = 8500                                     # scale height of earth atmosphere
@@ -107,7 +110,7 @@ class satellite:
         w, q, A, r, sun_in_view = self.Dynamics.rotation()
         self.constellation.data[self.sat_num] = self.Dynamics.Orbit_Data
         self.constellation.positions[self.sat_num] = self.Dynamics.sense.position/np.linalg.norm(self.Dynamics.sense.position)
-        if SET_PARAMS.Display:
+        if SET_PARAMS.Display and self.steps%SET_PARAMS.skip == 0:
             self.constellation.pv.run(w, q, A, r, sun_in_view = True, only_positions = True, sat_num = self.sat_num)
 
         for sats in range(self.constellation.number_of_satellites):
@@ -118,4 +121,12 @@ class satellite:
 
         self.nearest_neighbours = np.argpartition(self.satellite_angles, self.constellation.k_nearest_satellites + 1)[:self.constellation.k_nearest_satellites + 1]
         self.nearest_neighbours = [item for item in self.nearest_neighbours if item != self.sat_num]
+
+        data = [self.constellation.data[item] for item in self.nearest_neighbours]
+
+        self.FD.Per_Timestep(data)
+
+        self.steps += 1
+
+        
         

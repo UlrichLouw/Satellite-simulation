@@ -4,7 +4,7 @@ from Simulation.Parameters import SET_PARAMS
 import pandas as pd
 import multiprocessing
 from pathlib import Path
-from Simulation.dynamics import Dynamics
+from Simulation.dynamics import Single_Satellite
 from Simulation.Save_display import visualize_data, save_as_csv, save_as_pickle, save_as_excel
 import Fault_prediction.Fault_detection as Fault_detection
 import Simulation.Constellation as Constellation
@@ -68,13 +68,18 @@ if __name__ == "__main__":
     #########################################################
     SET_PARAMS.Display = True
     SET_PARAMS.save_as = ".xlsx"
-    SET_PARAMS.Kalman_filter_use = "RKF"
+    SET_PARAMS.Kalman_filter_use = "EKF"
     SET_PARAMS.Number_of_orbits = 10
-    SET_PARAMS.skip = 20
-    SET_PARAMS.Number_of_satellites = 10
+    SET_PARAMS.skip = 200
+    SET_PARAMS.Number_of_satellites = 100
     SET_PARAMS.Constellation = False
     SET_PARAMS.k_nearest_satellites = 5
 
+
+    #####################################
+    # PARAMETERS FOR SATELLITE DYNAMICS #
+    #####################################
+    s_list, t_list, J_t, fr = SET_PARAMS.s_list, SET_PARAMS.t_list, SET_PARAMS.J_t, SET_PARAMS.fr
     #########################################################
     #   TO ENABLE A CONSTELLATION A CLASS IS CREATED THAT   #
     #     CONTAINS THE DATA OF THE ENTIRE CONSTELLATION     #
@@ -97,7 +102,7 @@ if __name__ == "__main__":
         Data = []
         orbit_descriptions = []
         for i in range(SET_PARAMS.Number_of_multiple_orbits):
-            D = Dynamics(i)
+            D = Single_Satellite(i, s_list, t_list, J_t, fr)
 
             print(SET_PARAMS.Fault_names_values[i+1])
 
@@ -149,7 +154,7 @@ if __name__ == "__main__":
         orbit_descriptions = manager.dict()
 
         for i in range(1, SET_PARAMS.Number_of_multiple_orbits+1):
-            D = Dynamics(i)
+            D = Single_Satellite(i, s_list, t_list, J_t, fr)
 
             t = multiprocessing.Process(target=loop, args=(i, D, Data, orbit_descriptions))
             threads.append(t)

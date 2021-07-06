@@ -45,7 +45,7 @@ class EKF():
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.linalg.norm(np.eye(7))
+        self.Q_k = np.linalg.norm(np.eye(7))/100
 
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
@@ -53,7 +53,7 @@ class EKF():
         self.faster_than_controller = 1
         self.dt = Ts/self.faster_than_controller                     # Time step
         self.dh = self.dt/10                        # Size of increments for Runga-kutta method
-        self.dist = Disturbances()
+        self.dist = Disturbances(None)
 
 
     def Kalman_update(self, vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, t):

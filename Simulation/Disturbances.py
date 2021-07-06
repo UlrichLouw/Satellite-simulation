@@ -4,12 +4,12 @@ from Simulation.Earth_model import orbit
 from Simulation.Sensors import Sensors
 
 class Disturbances:
-    def __init__(self):
+    def __init__(self, sense):
         self.phi_s = np.zeros((3,1)) #arbitrary phase
         self.phi_d = np.zeros((3,1)) #arbitrary phase
         self.position_vector_of_wheels = np.identity(3)*SET_PARAMS.Dimensions/2 #radius from COM
         self.orbit = orbit()
-        self.sense = Sensors()
+        self.sense = sense
 
     def Gravity_gradient_func(self, A):
         zoB = A * np.array(([[0],[0],[1]]))

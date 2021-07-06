@@ -9,13 +9,13 @@ pi = math.pi
 
 
 class Sensors:
-    def __init__(self):
+    def __init__(self, s_list, t_list, J_t, fr):
         self.sat = Satrec()
         self.orbit = Earth_model.orbit()
         self.earth = Earth_model.Earth()
-        self.satellite = self.sat.twoline2rv(SET_PARAMS.s_list, SET_PARAMS.t_list)
-        e, self.r_sat, self.v_sat = self.satellite.sgp4(SET_PARAMS.J_t, SET_PARAMS.fr)  
-        self.coordinates_to_earth = EarthSatellite(SET_PARAMS.s_list, SET_PARAMS.t_list)
+        self.satellite = self.sat.twoline2rv(s_list, t_list)
+        e, self.r_sat, self.v_sat = self.satellite.sgp4(J_t, fr)  
+        self.coordinates_to_earth = EarthSatellite(s_list, t_list)
         self.first = 0
 
     def sun(self, t):
@@ -42,9 +42,10 @@ class Sensors:
         return S_EIC, self.in_sun_view     #in m
 
     def magnetometer(self, t):
-        latitude, longitude, altitude = Earth_model.ecef2lla(self.r_sat_EIC)
-        B = self.earth.scalar_potential_function(latitude, longitude, altitude)
+        self.latitude, self.longitude, self.altitude = Earth_model.ecef2lla(self.r_sat_EIC)
+        B = self.earth.scalar_potential_function(self.latitude, self.longitude, self.altitude)
         B += np.random.normal(0,np.linalg.norm(B)*SET_PARAMS.Magnetometer_noise,B.shape)
+        self.position = np.array([self.longitude[0][0], self.latitude[0][0], self.altitude[0][0]])
 
         return B
 
