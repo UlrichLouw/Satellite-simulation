@@ -41,7 +41,7 @@ class EKF():
 
         self.Inertia = SET_PARAMS.Inertia
 
-        self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
+        self.R_k, self.m_k = measurement_noise_covariance_matrix(0.5)       # standard deviation
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 

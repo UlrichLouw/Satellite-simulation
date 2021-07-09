@@ -70,7 +70,7 @@ if __name__ == "__main__":
     SET_PARAMS.save_as = ".xlsx"
     SET_PARAMS.Kalman_filter_use = "EKF"
     SET_PARAMS.Number_of_orbits = 10
-    SET_PARAMS.skip = 200
+    SET_PARAMS.skip = 20
     SET_PARAMS.Number_of_satellites = 100
     SET_PARAMS.Constellation = False
     SET_PARAMS.k_nearest_satellites = 5

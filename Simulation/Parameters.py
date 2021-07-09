@@ -280,7 +280,12 @@ class SET_PARAMS:
     Coarse_sun_sensor_angle = Coarse_sun_sensor_FOV/2 # The angle use to check whether the dot product angle is within the field of view
     Coarse_sun_noise = 0.01 #standard deviation away from where the actual sun is
 
-    # Constellation parameters
+    # Angular Momentum sensor
+    Angular_sensor_noise = 0.001
+
+    ############################
+    # CONSTELLATION PARAMETERS #
+    ############################
     Constellation = False
     Number_of_satellites = 1
     k_nearest_satellites = 5
@@ -540,13 +545,7 @@ class Overall_control(Fault_parameters):
         self.oscillation_magnitude = 0.2
         self.angular_wheels_max = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_high_speed_percentage*0.75, maximum = Max_high_speed_percentage)
         self.angular_wheels_min = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
-        self.first = True
-        super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
-
-    def Increasing_angular_RW_momentum(self, angular_wheels):
-        if self.first:
-            self.angular_wheels = angular_wheels
-            self.first = False
+        self.first = True N_control_magnetic - N_control_wheel
         if self.failure == "Increasing_angular_RW_momentum":
             self.angular_wheels = np.minimum((self.angular_wheels + abs(self.angular_wheels)/10), self.angular_wheels_max*np.ones(angular_wheels.shape)) 
         else:

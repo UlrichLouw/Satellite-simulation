@@ -222,7 +222,7 @@ class Dynamics:
 
         self.angular_momentum = rungeKutta_h(x0, self.angular_momentum, x, h, N_control_wheel)
 
-        self.angular_momentum = self.angular_momentum
+        self.angular_momentum = self.Angular_sensor_fault.normal_noise(self.angular_momentum, SET_PARAMS.Angular_sensor_noise)
 
         return y
 
