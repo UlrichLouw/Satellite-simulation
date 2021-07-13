@@ -27,7 +27,7 @@ class EKF():
     def __init__(self):
         self.angular_noise = SET_PARAMS.RW_sigma
 
-        self.measurement_noise =  0.01
+        self.measurement_noise =  0.5
 
         self.P_k = SET_PARAMS.P_k
 
@@ -41,11 +41,11 @@ class EKF():
 
         self.Inertia = SET_PARAMS.Inertia
 
-        self.R_k, self.m_k = measurement_noise_covariance_matrix(0.5)       # standard deviation
+        self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)       # standard deviation
 
         self.Q_wt = system_noise_covariance_matrix(self.angular_noise)
 
-        self.Q_k = np.linalg.norm(np.eye(7))/100
+        self.Q_k = np.linalg.norm(np.eye(7))
 
         self.wo = SET_PARAMS.wo
         self.angular_momentum = SET_PARAMS.initial_angular_wheels
@@ -233,7 +233,7 @@ def kq_function(w_bo):
 
 def measurement_noise_covariance_matrix(measurement_noise):
     m_k = np.array(([[measurement_noise], [measurement_noise], [measurement_noise]]))
-    R_k = np.diag([measurement_noise, measurement_noise, measurement_noise]) ** 2
+    R_k = np.diag([measurement_noise, measurement_noise, measurement_noise]) #** 2
     return R_k, m_k
 
 
@@ -411,9 +411,6 @@ def rungeKutta_w(Inertia, x0, w, x, h, angular_momentum, Nw, Nm, Ngg):
         x0 = x0 + h; 
 
     angular_momentum = rungeKutta_h(x0, angular_momentum, x, h, Nw)
-    #angular_momentum = np.clip(angular_momentum, -SET_PARAMS.h_ws_max, SET_PARAMS.h_ws_max)
-
-    #y = np.clip(y, -SET_PARAMS.wheel_angular_d_max, SET_PARAMS.wheel_angular_d_max)
 
     return y, angular_momentum
 
@@ -447,7 +444,7 @@ def rungeKutta_q(w_bo, x0, y0, x, h):
     return y
 
 if __name__ == "__main__":
-    rkf = EKF()
+    ekf = EKF()
     v_k = np.zeros((3,))
     Nm = np.array(([0, 1, 0])).T
     Nw = np.array(([0.1, 0.1, -0.1])).T
@@ -460,4 +457,4 @@ if __name__ == "__main__":
     vmeas_k = vmeas_k/np.linalg.norm(vmeas_k)
     dt = 1
     for i in range(100):
-        rkf.Kalman_update(vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt)
+        ekf.Kalman_update(vmeas_k, vmodel_k, Nm, Nw, Ngyro, Ngg, dt)

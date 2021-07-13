@@ -164,7 +164,7 @@ class Dynamics:
         # CONTROL TORQUES IMPLEMENTED DUE TO THE CONTROL LAW #
         ######################################################
 
-        N_control_magnetic, N_control_wheel = self.control.control(w, self.q, self.Inertia, self.B, self.angular_momentum)
+        N_control_magnetic, N_control_wheel = self.control.control(self.w_bi_est, self.q_est, self.Inertia, self.B, self.angular_momentum)
 
         N_gyro = w * (self.Inertia @ w + self.angular_momentum)
 
@@ -390,8 +390,8 @@ class Dynamics:
                 if not (v_ORC_k == 0.0).all():
                     # If the measured vector is equal to 0 then the sensor is not able to view the desired measurement
                     x = self.EKF.Kalman_update(v_measured_k, v_ORC_k, self.Nm, self.Nw, self.Ngyro, self.Ngg, self.t)
-                    self.q = x[3:]
-                    self.w_bi = x[:3]
+                    self.q_est = x[3:]
+                    self.w_bi_est = x[:3]
 
         elif SET_PARAMS.Kalman_filter_use == "RKF":
             for sensor in self.sensors_kalman:
@@ -414,8 +414,11 @@ class Dynamics:
                 if not (v_ORC_k == 0.0).all():
                     # If the measured vektor is equal to 0 then the sensor is not able to view the desired measurement
                     x = self.RKF.Kalman_update(v_measured_k, self.Nm, self.Nw, self.Ngyro, self.t)
-                    self.w_bi = x
-                
+                    self.w_bi_est = x
+                    self.q_est = self.q
+        else:
+            self.w_bi_est = self.w_bi
+            self.q_est = self.q
 
         if np.isnan(self.w_bi).any():
             print("break")
@@ -436,9 +439,11 @@ class Single_Satellite(Dynamics):
         self.sense = Sensors(s_list, t_list, J_t, fr)
         self.dist = Disturbances(self.sense)                  # Disturbances of the simulation
         self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
+        self.w_bi_est = self.w_bi
         self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
         self.angular_wheels = SET_PARAMS.initial_angular_wheels 
         self.q = SET_PARAMS.quaternion_initial      # Quaternion position
+        self.q_est = self.q
         self.t = SET_PARAMS.time                    # Beginning time
         self.dt = SET_PARAMS.Ts                     # Time step
         self.dh = self.dt/10                        # Size of increments for Runga-kutta method
@@ -510,9 +515,11 @@ class Constellation_Satellites(Dynamics):
         self.sense = Sensors(s_list, t_list, J_t, fr)
         self.dist = Disturbances(self.sense)                  # Disturbances of the simulation
         self.w_bi = SET_PARAMS.wbi                  # Angular velocity in ORC
+        self.w_bi_est = self.w_bi
         self.wo = SET_PARAMS.wo                     # Angular velocity of satellite around the earth
         self.angular_wheels = SET_PARAMS.initial_angular_wheels 
         self.q = SET_PARAMS.quaternion_initial      # Quaternion position
+        self.q_est = self.q
         self.t = SET_PARAMS.time                    # Beginning time
         self.dt = SET_PARAMS.Ts                     # Time step
         self.dh = self.dt/10                        # Size of increments for Runga-kutta method

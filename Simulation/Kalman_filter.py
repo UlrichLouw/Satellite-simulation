@@ -16,7 +16,7 @@ class RKF():
 
         self.Inertia = SET_PARAMS.Inertia
 
-        self.R_k, self.m_k = measurement_noise_covariance_matrix(self.measurement_noise)
+        self.R_k, self.m_k = measurement_noise_covariance_matrix(0.5)
         self.Q_k = system_noise_covariance_matrix(self.angular_noise)
 
         self.t = SET_PARAMS.time
@@ -43,11 +43,14 @@ class RKF():
 
 def measurement_noise_covariance_matrix(measurement_noise):
     m_k = np.array(([[measurement_noise], [measurement_noise], [measurement_noise]]))
-    R_k = np.diag([measurement_noise, measurement_noise, measurement_noise]) ** 2
+    R_k = np.diag([measurement_noise, measurement_noise, measurement_noise]) #** 2
+    R_k = np.array([[0.707, 0, 0],[0, 0.707, 0],[0, 0, 0.707]]) ** 2
     return R_k, m_k
 
 def system_noise_covariance_matrix(angular_noise):
     Q_k = np.diag([angular_noise,angular_noise,angular_noise]) ** 2
+    Q_k = np.array([[0.05, 0, 0],[0, 0.1, 0],[0, 0, 0.1]]) **2
+    Q_k = np.array([[0.707, 0, 0],[0, 0.707, 0],[0, 0, 0.707]]) ** 2
     return Q_k
 
 def Jacobian_H(v_k):

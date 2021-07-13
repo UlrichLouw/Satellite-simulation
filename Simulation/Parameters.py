@@ -151,12 +151,23 @@ class SET_PARAMS:
     time = 1
     Ts = 1 # Time_step
     wn = 90
-    Kp = 1 * wn**2 
-    Kd = 1 * wn * 0.707
-    #Kp = Kp/50
-    #Kd = Kd/5000
-    Kp = Kp/100000
-    Kd = Kd/1000000
+
+
+
+    # For no filter
+    Kp = 1.7e-2
+    Kd = 1.1e-1
+
+    # For RKF
+    # Kd = Kd * 4
+    # Kd = Kd/250
+
+    # For EKF
+    #Kp = Kp/10000
+    #Kd = Kd/100000
+    #Kp = Kp/10000000000000000000
+    #Kd = Kd/10000000000000000000
+
     Kd_magnet = 1e-7
     Ks_magnet = 1e-7
     Kalman_filter_use = True
@@ -545,7 +556,13 @@ class Overall_control(Fault_parameters):
         self.oscillation_magnitude = 0.2
         self.angular_wheels_max = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_high_speed_percentage*0.75, maximum = Max_high_speed_percentage)
         self.angular_wheels_min = SET_PARAMS.wheel_angular_d_max*random_size(minimum = Min_low_speed_percentage, maximum = Max_low_speed_percentage)
-        self.first = True N_control_magnetic - N_control_wheel
+        self.first = True
+        super().__init__(self.Fault_rate_per_hour, self.number_of_failures, self.failures, seed)
+
+    def Increasing_angular_RW_momentum(self, angular_wheels):
+        if self.first:
+            self.angular_wheels = angular_wheels
+            self.first = False
         if self.failure == "Increasing_angular_RW_momentum":
             self.angular_wheels = np.minimum((self.angular_wheels + abs(self.angular_wheels)/10), self.angular_wheels_max*np.ones(angular_wheels.shape)) 
         else:
